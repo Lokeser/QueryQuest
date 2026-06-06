@@ -174,7 +174,7 @@ namespace QueryQuest.Combat
         private void CastSpell(SpellData spell)
         {
             TransitionTo(CombatState.SPELL_CAST);
-            Log($"[FEITICO] Lançando {spell.Nome} ({spell.Elemento}) a distância {CurrentDistance}...");
+            Log($"[Magia] Lançando {spell.Nome} ({spell.Elemento}) a distância {CurrentDistance}...");
 
             var dmgResult = DamageCalculator.Calculate(spell, CurrentEnemy, CurrentDistance);
 

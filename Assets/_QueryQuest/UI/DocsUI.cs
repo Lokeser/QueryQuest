@@ -38,9 +38,9 @@ namespace QueryQuest.UI
 
         // Cores usadas nos exemplos (rich text TMP)
         private const string C_KEYWORD = "#a89fd8"; // roxo — palavras-chave SQL
-        private const string C_TABLE   = "#5dcaa5"; // verde — nomes de tabelas
-        private const string C_VALUE   = "#ef9f27"; // âmbar — valores
-        private const string C_MUTED   = "#534ab7"; // roxo escuro — comentários
+        private const string C_TABLE = "#5dcaa5"; // verde — nomes de tabelas
+        private const string C_VALUE = "#ef9f27"; // âmbar — valores
+        private const string C_MUTED = "#534ab7"; // roxo escuro — comentários
 
         private void OnEnable()
         {
@@ -51,15 +51,15 @@ namespace QueryQuest.UI
         {
             if (blockSelect != null)
                 blockSelect.text = Fmt(
-                    "<color={0}>SELECT</color> * <color={0}>FROM</color> <color={1}>Feiticos</color>",
+                    "<color={0}>SELECT</color> * <color={0}>FROM</color> <color={1}>Magias</color>",
                     K, T) + "\n" +
                     Desc("retorna todos os registros da tabela.");
 
             if (blockWhere != null)
                 blockWhere.text =
-                    Fmt("<color={0}>SELECT</color> * <color={0}>FROM</color> <color={1}>Feiticos</color> <color={0}>WHERE</color> Elemento = <color={2}>'Fogo'</color>", K, T, V) + "\n" +
+                    Fmt("<color={0}>SELECT</color> * <color={0}>FROM</color> <color={1}>Magias</color> <color={0}>WHERE</color> Elemento = <color={2}>'Fogo'</color>", K, T, V) + "\n" +
                     Desc("filtra por valor exato. Strings usam aspas simples.") + "\n\n" +
-                    Fmt("<color={0}>SELECT</color> * <color={0}>FROM</color> <color={1}>Feiticos</color> <color={0}>WHERE</color> Nivel >= <color={2}>2</color>", K, T, V) + "\n" +
+                    Fmt("<color={0}>SELECT</color> * <color={0}>FROM</color> <color={1}>Magias</color> <color={0}>WHERE</color> Nivel >= <color={2}>2</color>", K, T, V) + "\n" +
                     Desc("filtra por número. Sem aspas para valores numéricos.");
 
             if (blockOperators != null)
@@ -72,12 +72,12 @@ namespace QueryQuest.UI
 
             if (blockColumns != null)
                 blockColumns.text =
-                    Fmt("<color={1}>Feiticos</color>: Id | Nome | Elemento | Nivel | Distancia | DanoBase | Desbloqueado", K, T) + "\n" +
+                    Fmt("<color={1}>Magias</color>: Id | Nome | Elemento | Nivel | Distancia | DanoBase | Desbloqueado", K, T) + "\n" +
                     Fmt("<color={1}>Inimigos</color>: Id | Nome | Elemento | HP | Nivel | FraquezaElemento", K, T);
 
             if (blockExamples != null)
                 blockExamples.text =
-                    Fmt("<color={0}>SELECT</color> * <color={0}>FROM</color> <color={1}>Feiticos</color> <color={0}>WHERE</color> Elemento = <color={2}>'Agua'</color> <color={0}>AND</color> Distancia = <color={2}>'LONGO'</color>", K, T, V) + "\n" +
+                    Fmt("<color={0}>SELECT</color> * <color={0}>FROM</color> <color={1}>Magias</color> <color={0}>WHERE</color> Elemento = <color={2}>'Agua'</color> <color={0}>AND</color> Distancia = <color={2}>'LONGO'</color>", K, T, V) + "\n" +
                     Desc("seleciona feitiço de Água para longa distância.") + "\n\n" +
                     Fmt("<color={0}>SELECT</color> * <color={0}>FROM</color> <color={1}>Inimigos</color> <color={0}>WHERE</color> FraquezaElemento = <color={2}>'Fogo'</color>", K, T, V) + "\n" +
                     Desc("encontra inimigos fracos ao Fogo.");

@@ -13,13 +13,13 @@ namespace QueryQuest.Database
     /// Interpreta um subconjunto de SQL digitado pelo jogador.
     /// 
     /// Sintaxe suportada (v1):
-    ///   SELECT * FROM Feiticos
-    ///   SELECT * FROM Feiticos WHERE Elemento = 'Fogo'
-    ///   SELECT * FROM Feiticos WHERE Elemento = 'Fogo' AND Distancia = 'LONGO'
-    ///   SELECT * FROM Feiticos WHERE Nivel >= 2
+    ///   SELECT * FROM Magias
+    ///   SELECT * FROM Magias WHERE Elemento = 'Fogo'
+    ///   SELECT * FROM Magias WHERE Elemento = 'Fogo' AND Distancia = 'LONGO'
+    ///   SELECT * FROM Magias WHERE Nivel >= 2
     ///   SELECT * FROM Inimigos WHERE FraquezaElemento = 'Agua'
     /// 
-    /// Tabelas disponíveis: Feiticos | Inimigos
+    /// Tabelas disponíveis: Magias | Inimigos
     /// </summary>
     public class SQLInterpreter
     {
@@ -28,14 +28,14 @@ namespace QueryQuest.Database
         // Colunas válidas por tabela (para feedback de erro preciso)
         private static readonly Dictionary<string, HashSet<string>> ValidColumns = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["Feiticos"] = new(StringComparer.OrdinalIgnoreCase)
+            ["Magias"] = new(StringComparer.OrdinalIgnoreCase)
                 { "Id", "Nome", "Elemento", "Nivel", "Distancia", "DanoBase", "Descricao", "Desbloqueado" },
             ["Inimigos"] = new(StringComparer.OrdinalIgnoreCase)
                 { "Id", "Nome", "Elemento", "HP", "Nivel", "FraquezaElemento", "Descricao" }
         };
 
         private static readonly HashSet<string> ValidTables = new(StringComparer.OrdinalIgnoreCase)
-            { "Feiticos", "Inimigos" };
+            { "Magias", "Inimigos" };
 
         public SQLInterpreter(SQLiteConnection db)
         {
@@ -69,15 +69,15 @@ namespace QueryQuest.Database
                 RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
             if (!match.Success)
-                return QueryResult.Error("Sintaxe inválida. Exemplo: SELECT * FROM Feiticos WHERE Elemento = 'Fogo'");
+                return QueryResult.Error("Sintaxe inválida. Exemplo: SELECT * FROM Magias WHERE Elemento = 'Fogo'");
 
-            string colsPart  = match.Groups[1].Value.Trim();
+            string colsPart = match.Groups[1].Value.Trim();
             string tableName = match.Groups[2].Value.Trim();
             string wherePart = match.Groups[3].Success ? match.Groups[3].Value.Trim() : null;
 
             // Valida tabela
             if (!ValidTables.Contains(tableName))
-                return QueryResult.Error($"Tabela '{tableName}' não existe. Tabelas disponíveis: Feiticos, Inimigos.");
+                return QueryResult.Error($"Tabela '{tableName}' não existe. Tabelas disponíveis: Magias, Inimigos.");
 
             tableName = NormalizeTableName(tableName);
 
@@ -115,7 +115,7 @@ namespace QueryQuest.Database
             var conditions = new List<WhereCondition>();
 
             // Divide por AND / OR preservando os operadores lógicos
-            var tokens     = Regex.Split(wherePart, @"\s+(AND|OR)\s+", RegexOptions.IgnoreCase);
+            var tokens = Regex.Split(wherePart, @"\s+(AND|OR)\s+", RegexOptions.IgnoreCase);
             var logicalOps = Regex.Matches(wherePart, @"\s+(AND|OR)\s+", RegexOptions.IgnoreCase);
 
             for (int i = 0; i < tokens.Length; i++)
@@ -133,8 +133,8 @@ namespace QueryQuest.Database
                 if (!condMatch.Success)
                     return (false, $"Condição inválida: '{token}'. Exemplo: Elemento = 'Fogo'", null);
 
-                string col   = condMatch.Groups[1].Value.Trim();
-                string op    = condMatch.Groups[2].Value.Trim().ToUpper();
+                string col = condMatch.Groups[1].Value.Trim();
+                string op = condMatch.Groups[2].Value.Trim().ToUpper();
                 string value = condMatch.Groups[3].Value.Trim();
 
                 if (!ValidColumns[tableName].Contains(col))
@@ -151,9 +151,9 @@ namespace QueryQuest.Database
 
                 conditions.Add(new WhereCondition
                 {
-                    Column    = NormalizeColumnName(tableName, col),
-                    Operator  = op,
-                    Value     = value,
+                    Column = NormalizeColumnName(tableName, col),
+                    Operator = op,
+                    Value = value,
                     LogicalOp = logicalOp
                 });
             }
@@ -174,7 +174,7 @@ namespace QueryQuest.Database
                 var rows = new List<Dictionary<string, object>>();
                 SpellData selectedSpell = null;
 
-                if (tableName == "Feiticos")
+                if (tableName == "Magias")
                 {
                     var results = _db.Query<SpellData>(sqlQuery, args);
                     foreach (var spell in results)
@@ -208,7 +208,7 @@ namespace QueryQuest.Database
             if (conditions == null || conditions.Count == 0)
                 return ($"SELECT * FROM {tableName}", Array.Empty<object>());
 
-            var sb   = new StringBuilder($"SELECT * FROM {tableName} WHERE ");
+            var sb = new StringBuilder($"SELECT * FROM {tableName} WHERE ");
             var args = new List<object>();
 
             for (int i = 0; i < conditions.Count; i++)
@@ -250,7 +250,7 @@ namespace QueryQuest.Database
 
             foreach (var row in rows)
             {
-                if (tableName == "Feiticos")
+                if (tableName == "Magias")
                     sb.AppendLine($"[OUTPUT: Nome={row["Nome"]} | Elemento={row["Elemento"]} | " +
                                   $"Nível={row["Nivel"]} | Distância={row["Distancia"]} | Dano={row["DanoBase"]}]");
                 else
@@ -270,20 +270,29 @@ namespace QueryQuest.Database
 
         private Dictionary<string, object> SpellToDict(SpellData s) => new()
         {
-            ["Id"] = s.Id, ["Nome"] = s.Nome, ["Elemento"] = s.Elemento,
-            ["Nivel"] = s.Nivel, ["Distancia"] = s.Distancia, ["DanoBase"] = s.DanoBase,
-            ["Descricao"] = s.Descricao, ["Desbloqueado"] = s.Desbloqueado
+            ["Id"] = s.Id,
+            ["Nome"] = s.Nome,
+            ["Elemento"] = s.Elemento,
+            ["Nivel"] = s.Nivel,
+            ["Distancia"] = s.Distancia,
+            ["DanoBase"] = s.DanoBase,
+            ["Descricao"] = s.Descricao,
+            ["Desbloqueado"] = s.Desbloqueado
         };
 
         private Dictionary<string, object> EnemyToDict(EnemyData e) => new()
         {
-            ["Id"] = e.Id, ["Nome"] = e.Nome, ["Elemento"] = e.Elemento,
-            ["HP"] = e.HP, ["Nivel"] = e.Nivel, ["FraquezaElemento"] = e.FraquezaElemento,
+            ["Id"] = e.Id,
+            ["Nome"] = e.Nome,
+            ["Elemento"] = e.Elemento,
+            ["HP"] = e.HP,
+            ["Nivel"] = e.Nivel,
+            ["FraquezaElemento"] = e.FraquezaElemento,
             ["Descricao"] = e.Descricao
         };
 
         private static string NormalizeTableName(string t) =>
-            t.ToLower() switch { "feiticos" => "Feiticos", "inimigos" => "Inimigos", _ => t };
+            t.ToLower() switch { "magias" => "Magias", "inimigos" => "Inimigos", _ => t };
 
         private static string NormalizeColumnName(string table, string col)
         {
@@ -300,9 +309,9 @@ namespace QueryQuest.Database
 
     public class WhereCondition
     {
-        public string Column    { get; set; }
-        public string Operator  { get; set; }
-        public string Value     { get; set; }
+        public string Column { get; set; }
+        public string Operator { get; set; }
+        public string Value { get; set; }
         public string LogicalOp { get; set; } // AND | OR — operador que une esta condição à anterior
     }
 }

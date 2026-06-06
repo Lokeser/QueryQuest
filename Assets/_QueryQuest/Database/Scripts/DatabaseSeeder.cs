@@ -21,7 +21,7 @@ namespace QueryQuest.Database
         {
             if (db.Table<SpellData>().Count() > 0)
             {
-                Debug.Log("[Seeder] Tabela Feiticos já populada. Pulando seed.");
+                Debug.Log("[Seeder] Tabela Magias já populada. Pulando seed.");
                 return;
             }
 

@@ -3497,11 +3497,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::QueryQuest.UI.GrimoireUI
   panelQuery: {fileID: 824689107}
-  panelFeiticos: {fileID: 1893637291}
+  panelMagias: {fileID: 1893637291}
   panelArsenal: {fileID: 2135403263}
   panelDocs: {fileID: 470085676}
   tabQuery: {fileID: 668289271}
-  tabFeiticos: {fileID: 1501864492}
+  tabMagias: {fileID: 1501864492}
   tabArsenal: {fileID: 1516384139}
   tabDocs: {fileID: 980839411}
   tabActiveColor: {r: 0.67, g: 0.62, b: 0.85, a: 1}
@@ -4776,7 +4776,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "FEITI\xC7OS"
+  m_text: MAGIAS
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -5280,7 +5280,7 @@ GameObject:
   - component: {fileID: 1501864493}
   - component: {fileID: 1501864492}
   m_Layer: 5
-  m_Name: TabFeiticos
+  m_Name: TabMagias
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -7526,7 +7526,7 @@ GameObject:
   - component: {fileID: 1893637294}
   - component: {fileID: 1893637293}
   m_Layer: 5
-  m_Name: PanelFeiticos
+  m_Name: PanelMagias
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

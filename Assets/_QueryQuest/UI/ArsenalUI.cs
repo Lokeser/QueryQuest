@@ -1,5 +1,5 @@
 // Assets/_QueryQuest/UI/ArsenalUI.cs
-// Exibe os dados brutos da tabela Feiticos como no resultado de SELECT * FROM Feiticos.
+// Exibe os dados brutos da tabela Magias como no resultado de SELECT * FROM Magias.
 // Serve como referência educacional — o jogador vê exatamente o que o banco contém.
 //
 // Hierarquia esperada em PanelArsenal:

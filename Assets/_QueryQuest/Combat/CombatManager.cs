@@ -13,32 +13,33 @@ namespace QueryQuest.Combat
     /// </summary>
     public class CombatManager : MonoBehaviour
     {
-        // ─── Singleton ────────────────────────────────────────────────────────
+        // ─── Singleton -----------------------------───────────────────────────
         public static CombatManager Instance { get; private set; }
 
-        // ─── Estado atual ─────────────────────────────────────────────────────
+        // ─── Estado atual -----------------------------────────────────────────
         public CombatState CurrentState { get; private set; } = CombatState.IDLE;
 
-        // ─── Dados do combate em andamento ────────────────────────────────────
+        // ─── Dados do combate em andamento -----------------------------───────
         public EnemyData   CurrentEnemy    { get; private set; }
         public int         EnemyCurrentHP  { get; private set; }
         public int         PlayerCurrentHP { get; private set; }
         public int         PlayerMaxHP     { get; private set; } = 100;
         public string      CurrentDistance { get; private set; } = "MEDIO";
 
-        // ─── Referências ──────────────────────────────────────────────────────
+        // ─── Referências -----------------------------─────────────────────────
         private SQLInterpreter _interpreter;
         private TurnController _turnController;
+        private SlotSystem _slots;
 
-        // ─── Eventos (a UI se inscreve aqui) ──────────────────────────────────
+        // ─── Eventos (a UI se inscreve aqui) -----------------------------─────
         public event Action<CombatState>  OnStateChanged;
         public event Action<string>       OnCombatLog;          // mensagens para o log de combate
         public event Action<DamageResult, bool> OnDamageApplied; // resultado, isPlayerAttacking
         public event Action<bool>         OnCombatEnded;        // true = jogador venceu
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ----------------------------------------------------------───────────
         // UNITY
-        // ─────────────────────────────────────────────────────────────────────
+        // ----------------------------------------------------------───────────
 
         private void Awake()
         {
@@ -53,11 +54,15 @@ namespace QueryQuest.Combat
                 _turnController = gameObject.AddComponent<TurnController>();
 
             _interpreter = new SQLInterpreter(DatabaseManager.Instance.DB);
+
+            _slots = SlotSystem.Instance;
+            if (_slots == null)
+                Debug.LogError("[CombatManager] SlotSystem nao encontrado! Adicione ao GameManager.");
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ----------------------------------------------------------───────────
         // API PÚBLICA
-        // ─────────────────────────────────────────────────────────────────────
+        // ----------------------------------------------------------───────────
 
         /// <summary>Inicia um combate contra o inimigo especificado.</summary>
         public void StartCombat(EnemyData enemy)
@@ -67,9 +72,12 @@ namespace QueryQuest.Combat
             PlayerCurrentHP = PlayerMaxHP;
             CurrentDistance = "MEDIO";
 
-            Log($"⚔ Combate iniciado contra {enemy.Nome}!");
-            Log($"HP: Jogador {PlayerCurrentHP} | {enemy.Nome} {EnemyCurrentHP}");
+            Log($"[COMBATE] Combate iniciado contra {enemy.Nome}!");
+            Log($"[HP] Seu HP: {PlayerCurrentHP}/{PlayerMaxHP}  |  [DERROTA] {enemy.Nome}: {EnemyCurrentHP}/{enemy.HP}");
+            Log("-----------------------------");
+            Log("Seu turno! Mova-se e abra o grimório para atacar.");
 
+            _slots?.ResetPositions();
             TransitionTo(CombatState.PLAYER_TURN);
         }
 
@@ -118,14 +126,14 @@ namespace QueryQuest.Combat
                     ? "Nenhum feitiço encontrado. Refine sua query."
                     : $"{result.Rows.Count} feitiços encontrados. Use filtros para selecionar exatamente 1.";
 
-                Log($"⚠ {hint}");
+                Log($"[AVISO] {hint}");
                 TransitionTo(CombatState.GRIMOIRE_OPEN);
                 return result;
             }
 
             if (result.SelectedSpell.Desbloqueado == 0)
             {
-                Log($"⚠ {result.SelectedSpell.Nome} ainda não foi desbloqueado.");
+                Log($"[AVISO] {result.SelectedSpell.Nome} ainda não foi desbloqueado.");
                 TransitionTo(CombatState.GRIMOIRE_OPEN);
                 return result;
             }
@@ -141,7 +149,7 @@ namespace QueryQuest.Combat
             if (CurrentState != CombatState.PLAYER_TURN) return;
 
             CurrentDistance = newDistance.ToUpper();
-            Log($"📍 Distância alterada para {CurrentDistance}.");
+            Log($"[DISTANCIA] Distância alterada para {CurrentDistance}.");
             EndPlayerTurn();
         }
 
@@ -152,26 +160,26 @@ namespace QueryQuest.Combat
 
             bool success = UnityEngine.Random.value > 0.4f;
             Log(success
-                ? "🏃 Fuga bem-sucedida! SELECT * FROM Fuga_Log WHERE Sucesso = TRUE"
+                ? "[FUGA] Fuga bem-sucedida! SELECT * FROM Fuga_Log WHERE Sucesso = TRUE"
                 : "❌ Fuga falhou! O inimigo bloqueou a saída.");
 
             if (success) EndCombat(playerWon: false, fled: true);
             else EndPlayerTurn();
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ----------------------------------------------------------───────────
         // FLUXO INTERNO
-        // ─────────────────────────────────────────────────────────────────────
+        // ----------------------------------------------------------───────────
 
         private void CastSpell(SpellData spell)
         {
             TransitionTo(CombatState.SPELL_CAST);
-            Log($"✨ Lançando {spell.Nome} ({spell.Elemento}) a distância {CurrentDistance}...");
+            Log($"[FEITICO] Lançando {spell.Nome} ({spell.Elemento}) a distância {CurrentDistance}...");
 
             var dmgResult = DamageCalculator.Calculate(spell, CurrentEnemy, CurrentDistance);
 
-            Log($"📊 {dmgResult.Breakdown}");
-            Log($"💥 {dmgResult.Effectiveness}");
+            Log($"[DANO] {dmgResult.Breakdown}");
+            Log($"[EFEITO] {dmgResult.Effectiveness}");
 
             ApplyDamageToEnemy(dmgResult);
         }
@@ -183,8 +191,8 @@ namespace QueryQuest.Combat
             EnemyCurrentHP = Mathf.Max(0, EnemyCurrentHP - dmgResult.FinalDamage);
             OnDamageApplied?.Invoke(dmgResult, true);
 
-            Log($"🩸 {CurrentEnemy.Nome} HP: {EnemyCurrentHP}/{CurrentEnemy.HP} (-{dmgResult.FinalDamage})");
-            CheckResult();
+            Log($"[DANO] {CurrentEnemy.Nome} HP: {EnemyCurrentHP}/{CurrentEnemy.HP} (-{dmgResult.FinalDamage})");
+            CheckResult(wasPlayerAttacking: true);
         }
 
         private void ApplyDamageToPlayer(int damage)
@@ -195,38 +203,55 @@ namespace QueryQuest.Combat
             PlayerCurrentHP = Mathf.Max(0, PlayerCurrentHP - damage);
             OnDamageApplied?.Invoke(fakeResult, false);
 
-            Log($"🩸 Você sofreu {damage} de dano. HP: {PlayerCurrentHP}/{PlayerMaxHP}");
-            CheckResult();
+            Log($"[DANO] Você sofreu {damage} de dano. HP: {PlayerCurrentHP}/{PlayerMaxHP}");
+            CheckResult(wasPlayerAttacking: false);
         }
 
-        private void CheckResult()
+        private void CheckResult(bool wasPlayerAttacking)
         {
             TransitionTo(CombatState.CHECKING_RESULT);
 
             if (EnemyCurrentHP <= 0)
             {
-                Log($"🏆 {CurrentEnemy.Nome} foi derrotado!");
+                Log($"[VITORIA] {CurrentEnemy.Nome} foi derrotado!");
                 EndCombat(playerWon: true);
                 return;
             }
 
             if (PlayerCurrentHP <= 0)
             {
-                Log("💀 Você foi derrotado...");
+                Log("[DERROTA] Você foi derrotado...");
                 EndCombat(playerWon: false);
                 return;
             }
 
             // Combate continua
-            StartEnemyTurn();
+            if (wasPlayerAttacking)
+                StartEnemyTurn();   // jogador atacou → agora é o turno do inimigo
+            else
+                StartPlayerTurn();  // inimigo atacou → volta ao turno do jogador
+        }
+
+        private void StartPlayerTurn()
+        {
+            Log("-----------------------------");
+            Log("[COMBATE] Seu turno! Abra o grimório e escolha um feitiço.");
+            Log($"[HP] Seu HP: {PlayerCurrentHP}/{PlayerMaxHP}  |  [DERROTA] {CurrentEnemy.Nome}: {EnemyCurrentHP}/{CurrentEnemy.HP}");
+            TransitionTo(CombatState.PLAYER_TURN);
         }
 
         private void StartEnemyTurn()
         {
             TransitionTo(CombatState.ENEMY_TURN);
+
+            // Inimigo se move 1 slot em direcao ao jogador
+            _slots?.MoveEnemyTowardsPlayer();
+            if (_slots != null)
+                Log($"[INIMIGO] {CurrentEnemy.Nome} avanca! {_slots.GetStatusString()}");
+
             _turnController.ExecuteEnemyTurn(CurrentEnemy, (damage) =>
             {
-                Log($"👾 {CurrentEnemy.Nome} ataca!");
+                Log($"[INIMIGO] {CurrentEnemy.Nome} ataca!");
                 ApplyDamageToPlayer(damage);
             });
         }
@@ -245,9 +270,9 @@ namespace QueryQuest.Combat
             OnCombatEnded?.Invoke(playerWon);
         }
 
-        // ─────────────────────────────────────────────────────────────────────
+        // ----------------------------------------------------------───────────
         // HELPERS
-        // ─────────────────────────────────────────────────────────────────────
+        // ----------------------------------------------------------───────────
 
         private void TransitionTo(CombatState newState)
         {

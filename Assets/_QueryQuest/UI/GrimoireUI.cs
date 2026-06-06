@@ -201,7 +201,6 @@ namespace QueryQuest.UI
                     SetStatus("executando query...");
                     break;
 
-                case CombatState.SPELL_CAST:
                 case CombatState.PLAYER_TURN:
                 case CombatState.ENEMY_TURN:
                     if (IsOpen) Close();

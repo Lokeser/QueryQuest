@@ -71,7 +71,7 @@ namespace QueryQuest.Database
             if (!match.Success)
                 return QueryResult.Error("Sintaxe inválida. Exemplo: SELECT * FROM Magias WHERE Elemento = 'Fogo'");
 
-            string colsPart = match.Groups[1].Value.Trim();
+            string colsPart  = match.Groups[1].Value.Trim();
             string tableName = match.Groups[2].Value.Trim();
             string wherePart = match.Groups[3].Success ? match.Groups[3].Value.Trim() : null;
 
@@ -115,7 +115,7 @@ namespace QueryQuest.Database
             var conditions = new List<WhereCondition>();
 
             // Divide por AND / OR preservando os operadores lógicos
-            var tokens = Regex.Split(wherePart, @"\s+(AND|OR)\s+", RegexOptions.IgnoreCase);
+            var tokens     = Regex.Split(wherePart, @"\s+(AND|OR)\s+", RegexOptions.IgnoreCase);
             var logicalOps = Regex.Matches(wherePart, @"\s+(AND|OR)\s+", RegexOptions.IgnoreCase);
 
             for (int i = 0; i < tokens.Length; i++)
@@ -133,8 +133,8 @@ namespace QueryQuest.Database
                 if (!condMatch.Success)
                     return (false, $"Condição inválida: '{token}'. Exemplo: Elemento = 'Fogo'", null);
 
-                string col = condMatch.Groups[1].Value.Trim();
-                string op = condMatch.Groups[2].Value.Trim().ToUpper();
+                string col   = condMatch.Groups[1].Value.Trim();
+                string op    = condMatch.Groups[2].Value.Trim().ToUpper();
                 string value = condMatch.Groups[3].Value.Trim();
 
                 if (!ValidColumns[tableName].Contains(col))
@@ -151,9 +151,9 @@ namespace QueryQuest.Database
 
                 conditions.Add(new WhereCondition
                 {
-                    Column = NormalizeColumnName(tableName, col),
-                    Operator = op,
-                    Value = value,
+                    Column    = NormalizeColumnName(tableName, col),
+                    Operator  = op,
+                    Value     = value,
                     LogicalOp = logicalOp
                 });
             }
@@ -208,7 +208,7 @@ namespace QueryQuest.Database
             if (conditions == null || conditions.Count == 0)
                 return ($"SELECT * FROM {tableName}", Array.Empty<object>());
 
-            var sb = new StringBuilder($"SELECT * FROM {tableName} WHERE ");
+            var sb   = new StringBuilder($"SELECT * FROM {tableName} WHERE ");
             var args = new List<object>();
 
             for (int i = 0; i < conditions.Count; i++)
@@ -270,24 +270,15 @@ namespace QueryQuest.Database
 
         private Dictionary<string, object> SpellToDict(SpellData s) => new()
         {
-            ["Id"] = s.Id,
-            ["Nome"] = s.Nome,
-            ["Elemento"] = s.Elemento,
-            ["Nivel"] = s.Nivel,
-            ["Distancia"] = s.Distancia,
-            ["DanoBase"] = s.DanoBase,
-            ["Descricao"] = s.Descricao,
-            ["Desbloqueado"] = s.Desbloqueado
+            ["Id"] = s.Id, ["Nome"] = s.Nome, ["Elemento"] = s.Elemento,
+            ["Nivel"] = s.Nivel, ["Distancia"] = s.Distancia, ["DanoBase"] = s.DanoBase,
+            ["Descricao"] = s.Descricao, ["Desbloqueado"] = s.Desbloqueado
         };
 
         private Dictionary<string, object> EnemyToDict(EnemyData e) => new()
         {
-            ["Id"] = e.Id,
-            ["Nome"] = e.Nome,
-            ["Elemento"] = e.Elemento,
-            ["HP"] = e.HP,
-            ["Nivel"] = e.Nivel,
-            ["FraquezaElemento"] = e.FraquezaElemento,
+            ["Id"] = e.Id, ["Nome"] = e.Nome, ["Elemento"] = e.Elemento,
+            ["HP"] = e.HP, ["Nivel"] = e.Nivel, ["FraquezaElemento"] = e.FraquezaElemento,
             ["Descricao"] = e.Descricao
         };
 
@@ -309,9 +300,9 @@ namespace QueryQuest.Database
 
     public class WhereCondition
     {
-        public string Column { get; set; }
-        public string Operator { get; set; }
-        public string Value { get; set; }
+        public string Column    { get; set; }
+        public string Operator  { get; set; }
+        public string Value     { get; set; }
         public string LogicalOp { get; set; } // AND | OR — operador que une esta condição à anterior
     }
 }

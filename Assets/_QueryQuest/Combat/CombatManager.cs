@@ -174,9 +174,18 @@ namespace QueryQuest.Combat
         private void CastSpell(SpellData spell)
         {
             TransitionTo(CombatState.SPELL_CAST);
-            Log($"[Magia] Lançando {spell.Nome} ({spell.Elemento}) a distância {CurrentDistance}...");
+            Log($"[MAGIA] Lançando {spell.Nome} ({spell.Elemento}) a distância {CurrentDistance}...");
 
             var dmgResult = DamageCalculator.Calculate(spell, CurrentEnemy, CurrentDistance);
+
+            // Bônus de cajado elemental (item roguelike)
+            float staffBonus = PlayerStats.Instance?.GetElementBonus(spell.Elemento) ?? 1f;
+            if (staffBonus > 1f)
+            {
+                int boosted = Mathf.RoundToInt(dmgResult.FinalDamage * staffBonus);
+                Log($"[DANO] Cajado de {spell.Elemento}: {dmgResult.FinalDamage} -> {boosted} (+{(staffBonus-1f):P0})");
+                dmgResult.FinalDamage = boosted;
+            }
 
             Log($"[DANO] {dmgResult.Breakdown}");
             Log($"[EFEITO] {dmgResult.Effectiveness}");
@@ -197,6 +206,12 @@ namespace QueryQuest.Combat
 
         private void ApplyDamageToPlayer(int damage)
         {
+            // Redução de dano por armadura (item roguelike)
+            int original = damage;
+            damage = PlayerStats.Instance?.ApplyDamageReduction(damage) ?? damage;
+            if (damage < original)
+                Log($"[DANO] Armadura absorveu {original - damage} de dano.");
+
             TransitionTo(CombatState.APPLYING_DAMAGE);
 
             var fakeResult = new DamageResult { FinalDamage = damage };

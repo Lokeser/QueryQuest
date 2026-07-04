@@ -29,6 +29,12 @@ namespace QueryQuest.Models
         [Column("FraquezaElemento")]
         public string FraquezaElemento { get; set; } // calculado pelo ElementalSystem, mas guardado para consulta educacional
 
+        [Column("AtaqueDistancia")]
+        public string AtaqueDistancia { get; set; } // CURTO | MEDIO | LONGO — alcance do golpe do inimigo
+
+        [Column("FraquezaDistancia")]
+        public string FraquezaDistancia { get; set; } // CURTO | MEDIO | LONGO — distância onde toma dano EXTRA
+
         [Column("Descricao")]
         public string Descricao { get; set; }
     }

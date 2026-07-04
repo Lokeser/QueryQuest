@@ -13,6 +13,7 @@ namespace QueryQuest.Models
 
         // Linhas de resultado (cada linha é um dict coluna->valor)
         public List<Dictionary<string, object>> Rows { get; set; } = new();
+        public int ResultCount { get; set; } = 0;
 
         // Feitiço selecionado para lançar (se a query retornou exatamente 1 feitiço)
         public SpellData SelectedSpell { get; set; }

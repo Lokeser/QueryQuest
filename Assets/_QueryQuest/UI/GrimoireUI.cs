@@ -7,12 +7,12 @@
 //     │   └── TitleText          (TMP)
 //     ├── TabBar
 //     │   ├── TabQuery           (Button)
-//     │   ├── TabFeiticos        (Button)
+//     │   ├── TabMagias        (Button)
 //     │   ├── TabArsenal         (Button)
 //     │   └── TabDocs            (Button)
 //     ├── ContentArea
 //     │   ├── PanelQuery         (QueryTerminalUI aqui)
-//     │   ├── PanelFeiticos      (SpellListUI aqui)
+//     │   ├── PanelMagias      (MagiaListUI aqui)
 //     │   ├── PanelArsenal       (ArsenalUI aqui)
 //     │   └── PanelDocs          (DocsUI aqui)
 //     └── StatusBar
@@ -31,13 +31,13 @@ namespace QueryQuest.UI
         // ─── Referências ──────────────────────────────────────────────────────
         [Header("Panels")]
         [SerializeField] private GameObject panelQuery;
-        [SerializeField] private GameObject panelFeiticos;
+        [SerializeField] private GameObject panelMagias;
         [SerializeField] private GameObject panelArsenal;
         [SerializeField] private GameObject panelDocs;
 
         [Header("Tab Buttons")]
         [SerializeField] private Button tabQuery;
-        [SerializeField] private Button tabFeiticos;
+        [SerializeField] private Button tabMagias;
         [SerializeField] private Button tabArsenal;
         [SerializeField] private Button tabDocs;
 
@@ -54,13 +54,13 @@ namespace QueryQuest.UI
 
         // ─── Sub-controllers ──────────────────────────────────────────────────
         private QueryTerminalUI _queryTerminal;
-        private SpellListUI _spellList;
+        private MagiaListUI _magiaList;
         private ArsenalUI _arsenal;
 
         private CanvasGroup _canvasGroup;
         private RectTransform _rect;
 
-        public enum Tab { Query, Feiticos, Arsenal, Docs }
+        public enum Tab { Query, Magias, Arsenal, Docs }
         private Tab _currentTab = Tab.Query;
 
         // ─────────────────────────────────────────────────────────────────────
@@ -75,12 +75,12 @@ namespace QueryQuest.UI
             _rect = GetComponent<RectTransform>();
 
             _queryTerminal = panelQuery?.GetComponent<QueryTerminalUI>();
-            _spellList = panelFeiticos?.GetComponent<SpellListUI>();
+            _magiaList = panelMagias?.GetComponent<MagiaListUI>();
             _arsenal = panelArsenal?.GetComponent<ArsenalUI>();
 
             // Registra listeners das abas
             tabQuery?.onClick.AddListener(() => SwitchTab(Tab.Query));
-            tabFeiticos?.onClick.AddListener(() => SwitchTab(Tab.Feiticos));
+            tabMagias?.onClick.AddListener(() => SwitchTab(Tab.Magias));
             tabArsenal?.onClick.AddListener(() => SwitchTab(Tab.Arsenal));
             tabDocs?.onClick.AddListener(() => SwitchTab(Tab.Docs));
 
@@ -156,21 +156,21 @@ namespace QueryQuest.UI
             _currentTab = tab;
 
             panelQuery?.SetActive(tab == Tab.Query);
-            panelFeiticos?.SetActive(tab == Tab.Feiticos);
+            panelMagias?.SetActive(tab == Tab.Magias);
             panelArsenal?.SetActive(tab == Tab.Arsenal);
             panelDocs?.SetActive(tab == Tab.Docs);
 
             RefreshTabColors();
 
             // Recarrega dados das abas quando abertas
-            if (tab == Tab.Feiticos) _spellList?.Refresh();
+            if (tab == Tab.Magias) _magiaList?.Refresh();
             if (tab == Tab.Arsenal) _arsenal?.Refresh();
         }
 
         private void RefreshTabColors()
         {
             SetTabColor(tabQuery, _currentTab == Tab.Query);
-            SetTabColor(tabFeiticos, _currentTab == Tab.Feiticos);
+            SetTabColor(tabMagias, _currentTab == Tab.Magias);
             SetTabColor(tabArsenal, _currentTab == Tab.Arsenal);
             SetTabColor(tabDocs, _currentTab == Tab.Docs);
         }

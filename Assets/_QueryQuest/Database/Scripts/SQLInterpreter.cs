@@ -13,13 +13,13 @@ namespace QueryQuest.Database
     /// Interpreta um subconjunto de SQL digitado pelo jogador.
     /// 
     /// Sintaxe suportada (v1):
-    ///   SELECT * FROM Feiticos
-    ///   SELECT * FROM Feiticos WHERE Elemento = 'Fogo'
-    ///   SELECT * FROM Feiticos WHERE Elemento = 'Fogo' AND Distancia = 'LONGO'
-    ///   SELECT * FROM Feiticos WHERE Nivel >= 2
+    ///   SELECT * FROM Magias
+    ///   SELECT * FROM Magias WHERE Elemento = 'Fogo'
+    ///   SELECT * FROM Magias WHERE Elemento = 'Fogo' AND Distancia = 'LONGO'
+    ///   SELECT * FROM Magias WHERE Nivel >= 2
     ///   SELECT * FROM Inimigos WHERE FraquezaElemento = 'Agua'
     /// 
-    /// Tabelas disponíveis: Feiticos | Inimigos
+    /// Tabelas disponíveis: Magias | Inimigos
     /// </summary>
     public class SQLInterpreter
     {
@@ -28,14 +28,14 @@ namespace QueryQuest.Database
         // Colunas válidas por tabela (para feedback de erro preciso)
         private static readonly Dictionary<string, HashSet<string>> ValidColumns = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["Feiticos"] = new(StringComparer.OrdinalIgnoreCase)
+            ["Magias"] = new(StringComparer.OrdinalIgnoreCase)
                 { "Id", "Nome", "Elemento", "Nivel", "Distancia", "DanoBase", "Descricao", "Desbloqueado" },
             ["Inimigos"] = new(StringComparer.OrdinalIgnoreCase)
-                { "Id", "Nome", "Elemento", "HP", "Nivel", "FraquezaElemento", "Descricao" }
+                { "Id", "Nome", "Elemento", "HP", "Nivel", "FraquezaElemento", "AtaqueDistancia", "FraquezaDistancia", "Descricao" }
         };
 
         private static readonly HashSet<string> ValidTables = new(StringComparer.OrdinalIgnoreCase)
-            { "Feiticos", "Inimigos" };
+            { "Magias", "Inimigos" };
 
         public SQLInterpreter(SQLiteConnection db)
         {
@@ -64,20 +64,24 @@ namespace QueryQuest.Database
 
         private QueryResult ParseSelect(string query)
         {
+            // Regex agora captura WHERE, ORDER BY e LIMIT opcionais
             var match = Regex.Match(query,
-                @"SELECT\s+(.+?)\s+FROM\s+(\w+)(?:\s+WHERE\s+(.+))?$",
+                @"SELECT\s+(.+?)\s+FROM\s+(\w+)(?:\s+WHERE\s+(.+?))?(?:\s+ORDER\s+BY\s+(\w+)(?:\s+(ASC|DESC))?)?(?:\s+LIMIT\s+(\d+))?$",
                 RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
             if (!match.Success)
-                return QueryResult.Error("Sintaxe inválida. Exemplo: SELECT * FROM Feiticos WHERE Elemento = 'Fogo'");
+                return QueryResult.Error("Sintaxe inválida. Exemplo: SELECT * FROM Magias WHERE Elemento = 'Fogo'");
 
             string colsPart  = match.Groups[1].Value.Trim();
             string tableName = match.Groups[2].Value.Trim();
             string wherePart = match.Groups[3].Success ? match.Groups[3].Value.Trim() : null;
+            string orderCol  = match.Groups[4].Success ? match.Groups[4].Value.Trim() : null;
+            string orderDir  = match.Groups[5].Success ? match.Groups[5].Value.Trim().ToUpper() : "ASC";
+            string limitPart = match.Groups[6].Success ? match.Groups[6].Value.Trim() : null;
 
             // Valida tabela
             if (!ValidTables.Contains(tableName))
-                return QueryResult.Error($"Tabela '{tableName}' não existe. Tabelas disponíveis: Feiticos, Inimigos.");
+                return QueryResult.Error($"Tabela '{tableName}' não existe. Tabelas disponíveis: Magias, Inimigos.");
 
             tableName = NormalizeTableName(tableName);
 
@@ -92,7 +96,11 @@ namespace QueryQuest.Database
                 }
             }
 
-            // Valida e parseia WHERE — chama ParseWhereInternal diretamente (sem hack de cast)
+            // Valida ORDER BY
+            if (orderCol != null && !ValidColumns[tableName].Contains(orderCol))
+                return QueryResult.Error($"Coluna '{orderCol}' (ORDER BY) não existe na tabela '{tableName}'.");
+
+            // Valida e parseia WHERE
             List<WhereCondition> conditions = new();
             if (wherePart != null)
             {
@@ -103,7 +111,11 @@ namespace QueryQuest.Database
                 conditions = parsed;
             }
 
-            return ExecuteQuery(tableName, colsPart, conditions);
+            int? limit = null;
+            if (limitPart != null && int.TryParse(limitPart, out int lim))
+                limit = lim;
+
+            return ExecuteQuery(tableName, colsPart, conditions, orderCol, orderDir, limit);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -165,22 +177,25 @@ namespace QueryQuest.Database
         // EXECUÇÃO NO SQLITE
         // ─────────────────────────────────────────────────────────────────────
 
-        private QueryResult ExecuteQuery(string tableName, string colsPart, List<WhereCondition> conditions)
+        private QueryResult ExecuteQuery(string tableName, string colsPart, List<WhereCondition> conditions,
+                                         string orderCol = null, string orderDir = "ASC", int? limit = null)
         {
             try
             {
-                var (sqlQuery, args) = BuildSafeQuery(tableName, conditions);
+                var (sqlQuery, args) = BuildSafeQuery(tableName, conditions, orderCol, orderDir, limit);
 
                 var rows = new List<Dictionary<string, object>>();
                 SpellData selectedSpell = null;
 
-                if (tableName == "Feiticos")
+                if (tableName == "Magias")
                 {
                     var results = _db.Query<SpellData>(sqlQuery, args);
                     foreach (var spell in results)
                         rows.Add(SpellToDict(spell));
 
-                    if (results.Count == 1) selectedSpell = results[0];
+                    // 1 resultado = magia escolhida com precisão.
+                    // Múltiplos resultados = pega a PRIMEIRA (custa muita mana).
+                    if (results.Count >= 1) selectedSpell = results[0];
                 }
                 else if (tableName == "Inimigos")
                 {
@@ -190,7 +205,9 @@ namespace QueryQuest.Database
                 }
 
                 string log = BuildOutputLog(tableName, colsPart, rows, selectedSpell);
-                return QueryResult.Ok(log, rows, selectedSpell);
+                var qr = QueryResult.Ok(log, rows, selectedSpell);
+                qr.ResultCount = rows.Count;
+                return qr;
             }
             catch (Exception e)
             {
@@ -203,30 +220,42 @@ namespace QueryQuest.Database
         /// Monta a query SQL parametrizada a partir da lista de WhereCondition já validada.
         /// Nunca coloca input do jogador diretamente na string SQL.
         /// </summary>
-        private (string sql, object[] args) BuildSafeQuery(string tableName, List<WhereCondition> conditions)
+        private (string sql, object[] args) BuildSafeQuery(string tableName, List<WhereCondition> conditions,
+                                                           string orderCol = null, string orderDir = "ASC", int? limit = null)
         {
-            if (conditions == null || conditions.Count == 0)
-                return ($"SELECT * FROM {tableName}", Array.Empty<object>());
-
-            var sb   = new StringBuilder($"SELECT * FROM {tableName} WHERE ");
+            var sb   = new StringBuilder($"SELECT * FROM {tableName}");
             var args = new List<object>();
 
-            for (int i = 0; i < conditions.Count; i++)
+            // WHERE
+            if (conditions != null && conditions.Count > 0)
             {
-                var c = conditions[i];
+                sb.Append(" WHERE ");
+                for (int i = 0; i < conditions.Count; i++)
+                {
+                    var c = conditions[i];
+                    if (i > 0) sb.Append($" {c.LogicalOp} ");
 
-                // O primeiro item não tem operador predecessor
-                if (i > 0) sb.Append($" {c.LogicalOp} ");
+                    sb.Append(c.Operator == "LIKE"
+                        ? $"{c.Column} LIKE ?"
+                        : $"{c.Column} {c.Operator} ?");
 
-                sb.Append(c.Operator == "LIKE"
-                    ? $"{c.Column} LIKE ?"
-                    : $"{c.Column} {c.Operator} ?");
-
-                if (int.TryParse(c.Value, out int intVal))
-                    args.Add(intVal);
-                else
-                    args.Add(c.Value);
+                    if (int.TryParse(c.Value, out int intVal))
+                        args.Add(intVal);
+                    else
+                        args.Add(c.Value);
+                }
             }
+
+            // ORDER BY (coluna já validada; direção só pode ser ASC/DESC)
+            if (!string.IsNullOrEmpty(orderCol))
+            {
+                string dir = orderDir == "DESC" ? "DESC" : "ASC";
+                sb.Append($" ORDER BY {orderCol} {dir}");
+            }
+
+            // LIMIT
+            if (limit.HasValue && limit.Value > 0)
+                sb.Append($" LIMIT {limit.Value}");
 
             return (sb.ToString(), args.ToArray());
         }
@@ -250,7 +279,7 @@ namespace QueryQuest.Database
 
             foreach (var row in rows)
             {
-                if (tableName == "Feiticos")
+                if (tableName == "Magias")
                     sb.AppendLine($"[OUTPUT: Nome={row["Nome"]} | Elemento={row["Elemento"]} | " +
                                   $"Nível={row["Nivel"]} | Distância={row["Distancia"]} | Dano={row["DanoBase"]}]");
                 else
@@ -283,7 +312,7 @@ namespace QueryQuest.Database
         };
 
         private static string NormalizeTableName(string t) =>
-            t.ToLower() switch { "feiticos" => "Feiticos", "inimigos" => "Inimigos", _ => t };
+            t.ToLower() switch { "magias" => "Magias", "inimigos" => "Inimigos", _ => t };
 
         private static string NormalizeColumnName(string table, string col)
         {

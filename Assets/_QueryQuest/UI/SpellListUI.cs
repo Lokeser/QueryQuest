@@ -1,7 +1,7 @@
-// Assets/_QueryQuest/UI/SpellListUI.cs
-// Hierarquia esperada em PanelFeiticos:
+// Assets/_QueryQuest/UI/MagiaListUI.cs
+// Hierarquia esperada em PanelMagias:
 //
-// PanelFeiticos  (este script)
+// PanelMagias  (este script)
 // └── SpellScrollView
 //     └── Viewport
 //         └── SpellContent       (RectTransform + VerticalLayoutGroup)
@@ -24,22 +24,22 @@ using QueryQuest.Models;
 
 namespace QueryQuest.UI
 {
-    public class SpellListUI : MonoBehaviour
+    public class MagiaListUI : MonoBehaviour
     {
         [Header("Referências")]
         [SerializeField] private RectTransform spellContent;
         [SerializeField] private GameObject spellRowPrefab;
 
         [Header("Cores de Elemento")]
-        [SerializeField] private Color colorFogo  = new Color(0.94f, 0.58f, 0.58f);
-        [SerializeField] private Color colorAgua  = new Color(0.52f, 0.71f, 0.92f);
+        [SerializeField] private Color colorFogo = new Color(0.94f, 0.58f, 0.58f);
+        [SerializeField] private Color colorAgua = new Color(0.52f, 0.71f, 0.92f);
         [SerializeField] private Color colorVento = new Color(0.36f, 0.79f, 0.65f);
         [SerializeField] private Color colorTerra = new Color(0.98f, 0.78f, 0.46f);
-        [SerializeField] private Color colorRaio  = new Color(0.69f, 0.66f, 0.93f);
+        [SerializeField] private Color colorRaio = new Color(0.69f, 0.66f, 0.93f);
 
         [Header("Cores de Status")]
         [SerializeField] private Color colorUnlocked = new Color(0.36f, 0.79f, 0.65f);
-        [SerializeField] private Color colorLocked   = new Color(0.37f, 0.37f, 0.35f);
+        [SerializeField] private Color colorLocked = new Color(0.37f, 0.37f, 0.35f);
 
         private readonly List<GameObject> _rows = new();
 
@@ -87,10 +87,10 @@ namespace QueryQuest.UI
             cg.alpha = unlocked ? 1f : 0.45f;
 
             // Preenche os campos pelo nome do GameObject filho
-            SetChildText(row, "NameText",   spell.Nome);
+            SetChildText(row, "NameText", spell.Nome);
             SetChildText(row, "ElementBadge", spell.Elemento);
-            SetChildText(row, "LevelText",  "Nv." + spell.Nivel);
-            SetChildText(row, "DistText",   spell.Distancia);
+            SetChildText(row, "LevelText", "Nv." + spell.Nivel);
+            SetChildText(row, "DistText", spell.Distancia);
             SetChildText(row, "DamageText", spell.DanoBase.ToString());
             SetChildText(row, "StatusBadge", unlocked ? "PRONTO" : "BLOQ.");
 
@@ -129,12 +129,12 @@ namespace QueryQuest.UI
 
         private Color GetElementColor(string elemento) => elemento?.ToLower() switch
         {
-            "fogo"  => colorFogo,
-            "agua"  => colorAgua,
+            "fogo" => colorFogo,
+            "agua" => colorAgua,
             "vento" => colorVento,
             "terra" => colorTerra,
-            "raio"  => colorRaio,
-            _       => Color.white
+            "raio" => colorRaio,
+            _ => Color.white
         };
     }
 }

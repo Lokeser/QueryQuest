@@ -33,7 +33,7 @@ namespace QueryQuest.Combat
 
         // Eventos para a UI reagir
         public event Action<int, int> OnPositionsChanged; // playerSlot, enemySlot
-        public event Action<int>      OnSpellRangeHighlight; // slot atingido pelo feitiço (-1 = nenhum)
+        public event Action<System.Collections.Generic.List<int>> OnSpellRangeHighlight; // slots atingidos (vazio = limpar)
 
         private void Awake()
         {
@@ -116,10 +116,11 @@ namespace QueryQuest.Combat
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Retorna o slot atingido pelo feitiço baseado na distância.
-        /// CURTO = +1, MEDIO = +2, LONGO = +3 (em direção ao inimigo).
+        /// Retorna TODOS os slots atingidos pelo feitiço (área de efeito).
+        /// CURTO = [slot+1] | MEDIO = [slot+1, slot+2] | LONGO = [slot+1, slot+2, slot+3].
+        /// O slot do próprio jogador nunca conta.
         /// </summary>
-        public int GetTargetSlot(string distancia)
+        public System.Collections.Generic.List<int> GetTargetSlots(string distancia)
         {
             int reach = distancia.ToUpper() switch
             {
@@ -129,19 +130,34 @@ namespace QueryQuest.Combat
                 _       => 1
             };
 
-            // Direção: se inimigo está à frente (slot maior), avança; senão recua
             int direction = EnemySlot >= PlayerSlot ? 1 : -1;
-            return PlayerSlot + (reach * direction);
+            var slots = new System.Collections.Generic.List<int>();
+
+            for (int step = 1; step <= reach; step++)
+            {
+                int s = PlayerSlot + (step * direction);
+                if (s >= SLOT_MIN && s <= SLOT_MAX)
+                    slots.Add(s);
+            }
+            return slots;
+        }
+
+        /// <summary>
+        /// Retorna o slot mais distante atingido (para compatibilidade / centro do efeito).
+        /// </summary>
+        public int GetTargetSlot(string distancia)
+        {
+            var slots = GetTargetSlots(distancia);
+            return slots.Count > 0 ? slots[slots.Count - 1] : PlayerSlot;
         }
 
         /// <summary>
         /// Verifica se o feitiço acerta o inimigo.
-        /// Acerta APENAS se o inimigo estiver exatamente no slot atingido.
+        /// Acerta se o inimigo estiver em QUALQUER slot dentro da área do feitiço.
         /// </summary>
         public bool SpellHitsEnemy(string distancia)
         {
-            int targetSlot = GetTargetSlot(distancia);
-            return EnemySlot == targetSlot;
+            return GetTargetSlots(distancia).Contains(EnemySlot);
         }
 
         /// <summary>Distância em slots entre jogador e inimigo.</summary>
@@ -153,13 +169,18 @@ namespace QueryQuest.Combat
 
         public void ShowSpellRange(string distancia)
         {
-            int targetSlot = GetTargetSlot(distancia);
-            OnSpellRangeHighlight?.Invoke(targetSlot);
+            OnSpellRangeHighlight?.Invoke(GetTargetSlots(distancia));
+        }
+
+        /// <summary>Mostra os slots atingidos diretamente (para o flash de 2s).</summary>
+        public void ShowSpellRangeSlots(System.Collections.Generic.List<int> slots)
+        {
+            OnSpellRangeHighlight?.Invoke(slots);
         }
 
         public void HideSpellRange()
         {
-            OnSpellRangeHighlight?.Invoke(-1);
+            OnSpellRangeHighlight?.Invoke(new System.Collections.Generic.List<int>());
         }
 
         // ─────────────────────────────────────────────────────────────────────

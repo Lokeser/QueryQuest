@@ -4,10 +4,10 @@ using SQLite;
 namespace QueryQuest.Models
 {
     /// <summary>
-    /// Representa um registro da tabela "Feiticos" no banco SQLite.
+    /// Representa um registro da tabela "Magias" no banco SQLite.
     /// Cada instância = uma linha da tabela.
     /// </summary>
-    [Table("Feiticos")]
+    [Table("Magias")]
     public class SpellData
     {
         [PrimaryKey, AutoIncrement]

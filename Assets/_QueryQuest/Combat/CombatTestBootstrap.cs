@@ -19,7 +19,7 @@ namespace QueryQuest.Combat
         [SerializeField] private int enemyId = 1; // Id do inimigo na tabela Inimigos
 
         [TextArea(2, 4)]
-        [SerializeField] private string testQuery = "SELECT * FROM Feiticos WHERE Elemento = 'Fogo' AND Distancia = 'MEDIO'";
+        [SerializeField] private string testQuery = "SELECT * FROM Magias WHERE Elemento = 'Fogo' AND Distancia = 'MEDIO'";
 
         private IEnumerator Start()
         {

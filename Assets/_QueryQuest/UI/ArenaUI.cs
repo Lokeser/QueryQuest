@@ -185,21 +185,23 @@ namespace QueryQuest.UI
             Refresh(playerSlot, enemySlot);
         }
 
-        private void OnSpellRangeHighlight(int targetSlot)
+        private void OnSpellRangeHighlight(System.Collections.Generic.List<int> targetSlots)
         {
             for (int i = 0; i < 6; i++)
             {
                 int slot = i + 1;
-                if (targetSlot == -1)
+                if (targetSlots == null || targetSlots.Count == 0)
                 {
-                    // Limpa highlight
                     _slotImages[i].color = slotNormal;
                 }
-                else if (slot == targetSlot)
+                else if (targetSlots.Contains(slot))
                 {
-                    // Slot atingido pelo feitiço
-                    bool hitsEnemy = SlotSystem.Instance != null && SlotSystem.Instance.EnemySlot == targetSlot;
+                    bool hitsEnemy = SlotSystem.Instance != null && slot == SlotSystem.Instance.EnemySlot;
                     _slotImages[i].color = hitsEnemy ? slotTarget : slotHighlight;
+                }
+                else
+                {
+                    _slotImages[i].color = slotNormal;
                 }
             }
         }
@@ -252,7 +254,7 @@ namespace QueryQuest.UI
 
         public void ClearHighlights()
         {
-            OnSpellRangeHighlight(-1);
+            OnSpellRangeHighlight(new System.Collections.Generic.List<int>());
         }
     }
 }

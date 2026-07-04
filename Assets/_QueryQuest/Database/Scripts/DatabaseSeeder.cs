@@ -21,12 +21,16 @@ namespace QueryQuest.Database
         {
             if (db.Table<SpellData>().Count() > 0)
             {
-                Debug.Log("[Seeder] Tabela Feiticos já populada. Pulando seed.");
+                Debug.Log("[Seeder] Tabela Magias já populada. Pulando seed.");
                 return;
             }
 
             var spells = new SpellData[]
             {
+                // ─── UTILITÁRIO ──────────────────────────────────────────────
+                new() { Nome = "Analise",          Elemento = "Neutro", Nivel = 1, Distancia = "MEDIO", DanoBase = 0, Desbloqueado = 1,
+                        Descricao = "Revela informações do inimigo. Use SELECT para escolher o que descobrir (Elemento, Ataque, Nivel...)." },
+
                 // ─── FOGO ───────────────────────────────────────────────────
                 new() { Nome = "Bola de Fogo",     Elemento = "Fogo",  Nivel = 1, Distancia = "MEDIO", DanoBase = 30, Desbloqueado = 1,
                         Descricao = "Uma esfera de chamas lançada contra o inimigo." },
@@ -76,15 +80,15 @@ namespace QueryQuest.Database
 
             var enemies = new EnemyData[]
             {
-                new() { Nome = "Registro Corrompido Alfa", Elemento = "Fogo",  HP = 60,  Nivel = 1, FraquezaElemento = "Agua",
+                new() { Nome = "Registro Corrompido Alfa", Elemento = "Fogo",  HP = 60,  Nivel = 1, FraquezaElemento = "Agua",  AtaqueDistancia = "CURTO", FraquezaDistancia = "LONGO",
                         Descricao = "Um dado corrompido que irradia calor." },
-                new() { Nome = "Registro Corrompido Beta", Elemento = "Agua",  HP = 80,  Nivel = 1, FraquezaElemento = "Raio",
+                new() { Nome = "Registro Corrompido Beta", Elemento = "Agua",  HP = 80,  Nivel = 1, FraquezaElemento = "Raio",  AtaqueDistancia = "CURTO", FraquezaDistancia = "MEDIO",
                         Descricao = "Uma entidade líquida e instável." },
-                new() { Nome = "Registro Nulo",            Elemento = "Terra", HP = 120, Nivel = 2, FraquezaElemento = "Vento",
+                new() { Nome = "Registro Nulo",            Elemento = "Terra", HP = 120, Nivel = 2, FraquezaElemento = "Vento", AtaqueDistancia = "MEDIO", FraquezaDistancia = "CURTO",
                         Descricao = "Um construto de pedra sem valor definido." },
-                new() { Nome = "Overflow Elemental",       Elemento = "Raio",  HP = 100, Nivel = 2, FraquezaElemento = "Terra",
+                new() { Nome = "Overflow Elemental",       Elemento = "Raio",  HP = 100, Nivel = 2, FraquezaElemento = "Terra", AtaqueDistancia = "MEDIO", FraquezaDistancia = "LONGO",
                         Descricao = "Energia elétrica transbordante." },
-                new() { Nome = "Corruptor Primordial",     Elemento = "Vento", HP = 200, Nivel = 3, FraquezaElemento = "Fogo",
+                new() { Nome = "Corruptor Primordial",     Elemento = "Vento", HP = 200, Nivel = 3, FraquezaElemento = "Fogo",  AtaqueDistancia = "LONGO", FraquezaDistancia = "CURTO",
                         Descricao = "O chefe dos registros corrompidos." },
             };
 

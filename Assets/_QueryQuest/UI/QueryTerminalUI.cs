@@ -30,9 +30,9 @@ namespace QueryQuest.UI
         [SerializeField] private Button executeButton;
 
         [Header("Cores do Log")]
-        [SerializeField] private Color colorOk      = new Color(0.36f, 0.79f, 0.65f); // #5dcaa5 verde
-        [SerializeField] private Color colorError   = new Color(0.94f, 0.58f, 0.58f); // #f09595 vermelho
-        [SerializeField] private Color colorInfo    = new Color(0.66f, 0.62f, 0.85f); // #a89fd8 roxo
+        [SerializeField] private Color colorOk = new Color(0.36f, 0.79f, 0.65f); // #5dcaa5 verde
+        [SerializeField] private Color colorError = new Color(0.94f, 0.58f, 0.58f); // #f09595 vermelho
+        [SerializeField] private Color colorInfo = new Color(0.66f, 0.62f, 0.85f); // #a89fd8 roxo
         [SerializeField] private Color colorWarning = new Color(0.94f, 0.62f, 0.15f); // #ef9f27 âmbar
 
         [Header("Limite de linhas no log")]
@@ -58,7 +58,7 @@ namespace QueryQuest.UI
             if (_logLines.Count == 0)
             {
                 AppendLog("[GRIMORIO.SQL] Sistema inicializado.", LogType.Info);
-                AppendLog("[DICA] Use SELECT * FROM Feiticos para listar seus feitiços.", LogType.Info);
+                AppendLog("[DICA] Use SELECT * FROM Magias para listar seus feitiços.", LogType.Info);
                 AppendLog("[DICA] Filtre com WHERE Elemento = 'Fogo' para selecionar um feitiço.", LogType.Info);
             }
         }
@@ -98,10 +98,10 @@ namespace QueryQuest.UI
                 tmp.text = message;
                 tmp.color = type switch
                 {
-                    LogType.Ok      => colorOk,
-                    LogType.Error   => colorError,
+                    LogType.Ok => colorOk,
+                    LogType.Error => colorError,
                     LogType.Warning => colorWarning,
-                    _               => colorInfo,
+                    _ => colorInfo,
                 };
             }
 

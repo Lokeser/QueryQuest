@@ -79,6 +79,63 @@ namespace QueryQuest.UI
         // RECEBIMENTO DE MENSAGENS
         // ─────────────────────────────────────────────────────────────────────
 
+        /// <summary>Conteúdo do log — o TextStyler pula esta subárvore (ver ScaleFont).</summary>
+        public RectTransform ContentRoot => logContent;
+
+        /// <summary>
+        /// Paleta de tinta escura, para quando o painel tem fundo de pergaminho.
+        /// As cores originais são claras (feitas para fundo preto) e sumiriam nele.
+        /// </summary>
+        public void ApplyParchmentPalette()
+        {
+            colorDefault = new Color(0.24f, 0.16f, 0.07f);
+            colorPlayer  = new Color(0.11f, 0.35f, 0.14f);
+            colorEnemy   = new Color(0.55f, 0.12f, 0.09f);
+            colorDamage  = new Color(0.55f, 0.30f, 0.04f);
+            colorSystem  = new Color(0.36f, 0.29f, 0.20f);
+            colorVictory = new Color(0.10f, 0.40f, 0.16f);
+            colorDefeat  = new Color(0.58f, 0.09f, 0.09f);
+
+            foreach (var line in _lines)
+            {
+                if (line == null) continue;
+                var tmp = line.GetComponent<TextMeshProUGUI>();
+                if (tmp != null) tmp.color = GetColorForMessage(tmp.text);
+            }
+        }
+
+        /// <summary>
+        /// Escala a fonte do log. Precisa ser feito AQUI (e não por fora) porque a
+        /// altura de cada linha é calculada manualmente a partir do fontSize —
+        /// mexer no texto depois deixaria as linhas sobrepostas.
+        /// </summary>
+        public void ScaleFont(float factor)
+        {
+            fontSize *= factor;
+
+            foreach (var line in _lines)
+            {
+                if (line == null) continue;
+                var tmp = line.GetComponent<TextMeshProUGUI>();
+                if (tmp == null) continue;
+
+                tmp.fontSize = fontSize;
+                tmp.fontStyle |= FontStyles.Bold;
+
+                var fonte = QueryQuest.UI.TextStyler.Fonte;
+                if (fonte != null) tmp.font = fonte;
+
+                var le = line.GetComponent<LayoutElement>();
+                if (le == null || logContent == null) continue;
+
+                float availableWidth = logContent.rect.width - 16f;
+                if (availableWidth < 50f) availableWidth = 300f;
+                float h = tmp.GetPreferredValues(tmp.text, availableWidth, 0f).y;
+                le.minHeight = h + 2f;
+                le.preferredHeight = h + 2f;
+            }
+        }
+
         public void AppendLog(string message)
         {
             if (string.IsNullOrEmpty(message)) return;
@@ -92,7 +149,12 @@ namespace QueryQuest.UI
             {
                 tmp.text = message;
                 tmp.fontSize = fontSize;
+                tmp.fontStyle |= FontStyles.Bold;
                 tmp.color = GetColorForMessage(message);
+
+                // A fonte entra ANTES do cálculo de altura (GetPreferredValues)
+                var fonte = QueryQuest.UI.TextStyler.Fonte;
+                if (fonte != null) tmp.font = fonte;
 
                 // Garante que o texto quebra linha e não transborda
                 tmp.textWrappingMode = TextWrappingModes.Normal;

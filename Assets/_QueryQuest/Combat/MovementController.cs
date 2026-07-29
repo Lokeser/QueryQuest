@@ -71,6 +71,9 @@ namespace QueryQuest.Combat
                 case MoveResult.OutOfBounds:
                     Debug.Log($"[MovementController] Não pode mover para {direction} — fora dos limites.");
                     break;
+                case MoveResult.Blocked:
+                    Debug.Log($"[MovementController] Não pode mover para {direction} — o inimigo está nesse slot.");
+                    break;
             }
         }
     }

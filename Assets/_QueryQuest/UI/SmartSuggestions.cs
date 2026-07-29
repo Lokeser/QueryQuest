@@ -20,6 +20,8 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using QueryQuest.Database;
+using QueryQuest.Models;
 
 namespace QueryQuest.UI
 {
@@ -176,8 +178,13 @@ namespace QueryQuest.UI
                     var opMatch = Regex.Match(afterWhere, @"(\w+)\s*(=|>|<|>=|<=|!=)\s*$");
                     if (opMatch.Success)
                     {
-                        string col = opMatch.Groups[1].Value;
-                        if (ColumnValues.TryGetValue(NormalizeCol(col, activeTable), out var vals))
+                        string col = NormalizeCol(opMatch.Groups[1].Value, activeTable);
+
+                        // Nome é string: sugere os nomes reais do banco, JÁ entre aspas
+                        if (col == "Nome")
+                            return GetNameSuggestions(activeTable);
+
+                        if (ColumnValues.TryGetValue(col, out var vals))
                             return vals.ToList();
                     }
 
@@ -205,6 +212,30 @@ namespace QueryQuest.UI
         // ─────────────────────────────────────────────────────────────────────
         // HELPERS DE ESQUEMA
         // ─────────────────────────────────────────────────────────────────────
+
+        // Cache dos nomes (a lista de magias/inimigos não muda durante o combate)
+        private List<string> _cachedSpellNames;
+        private List<string> _cachedEnemyNames;
+
+        /// <summary>Nomes reais da tabela ativa, entre aspas simples (Nome é string!).</summary>
+        private List<string> GetNameSuggestions(string activeTable)
+        {
+            var db = DatabaseManager.Instance != null ? DatabaseManager.Instance.DB : null;
+            if (db == null) return new List<string>();
+
+            if (activeTable == "Inimigos")
+            {
+                if (_cachedEnemyNames == null)
+                    _cachedEnemyNames = db.Table<EnemyData>().ToList()
+                        .Select(e => $"'{e.Nome}'").Distinct().ToList();
+                return _cachedEnemyNames;
+            }
+
+            if (_cachedSpellNames == null)
+                _cachedSpellNames = db.Table<SpellData>().ToList()
+                    .Select(s => $"'{s.Nome}'").Distinct().ToList();
+            return _cachedSpellNames;
+        }
 
         private string DetectTable(string upperText)
         {

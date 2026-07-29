@@ -47,6 +47,19 @@ namespace QueryQuest.UI
         [SerializeField] private Color manaColor = new Color(0.35f, 0.55f, 0.95f);
         [SerializeField] private Color enemyHPColor = new Color(0.80f, 0.30f, 0.30f);
 
+        /// <summary>
+        /// As barras passaram a ser ARTE (verde/azul/vermelha vindas da HUD), então
+        /// o tint por código precisa sair do caminho — senão pinta por cima do
+        /// sprite. Quem encolhe a barra continua sendo o fillAmount.
+        /// </summary>
+        public void UseArtSkin()
+        {
+            hpFull = hpLow = manaColor = enemyHPColor = Color.white;
+            RefreshHealth();
+            if (ManaSystem.Instance != null)
+                RefreshMana(ManaSystem.Instance.CurrentMana, ManaSystem.Instance.MaxMana);
+        }
+
         // ─────────────────────────────────────────────────────────────────────
         // UNITY
         // ─────────────────────────────────────────────────────────────────────

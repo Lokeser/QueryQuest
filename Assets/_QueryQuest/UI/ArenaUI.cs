@@ -36,6 +36,24 @@ namespace QueryQuest.UI
         [SerializeField] private Color enemyColor    = new Color(0.85f, 0.20f, 0.20f); // vermelho
         [SerializeField] private Color tokenBg       = new Color(0.08f, 0.08f, 0.15f);
 
+        /// <summary>
+        /// A barra de slots passou a ter as 6 caixas DESENHADAS na arte: o fundo
+        /// de cada slot fica invisível e o realce vira um véu translúcido por cima
+        /// da caixa (senão o alcance da magia deixaria de aparecer).
+        /// </summary>
+        private bool _artSkin;
+
+        public void UseArtSkin()
+        {
+            _artSkin = true;
+            slotNormal    = new Color(0f, 0f, 0f, 0f);
+            slotHighlight = new Color(0.95f, 0.62f, 0.15f, 0.45f);
+            slotTarget    = new Color(0.90f, 0.15f, 0.12f, 0.55f);
+
+            if (SlotSystem.Instance != null)
+                Refresh(SlotSystem.Instance.PlayerSlot, SlotSystem.Instance.EnemySlot);
+        }
+
         // Referências internas dos slots (índice 0 = slot 1)
         private Image[]           _slotImages  = new Image[6];
         private TextMeshProUGUI[] _slotLabels  = new TextMeshProUGUI[6];
@@ -230,21 +248,28 @@ namespace QueryQuest.UI
             if (!active) return;
 
             var rt = token.GetComponent<RectTransform>();
+
+            // Com a arte nova, o ícone é centralizado na caixa desenhada e a faixa
+            // de baixo fica livre para o número do slot.
+            float y0 = _artSkin ? 0.22f : 0.35f;
+            float y1 = _artSkin ? 0.96f : 0.85f;
+            float m  = _artSkin ? 0f : 8f;
+
             if (sharedSlot)
             {
                 // Lado a lado quando compartilhando slot
-                rt.anchorMin = isLeft ? new Vector2(0f, 0.35f) : new Vector2(0.5f, 0.35f);
-                rt.anchorMax = isLeft ? new Vector2(0.5f, 0.85f) : new Vector2(1f, 0.85f);
-                rt.offsetMin = new Vector2(4, 0);
-                rt.offsetMax = new Vector2(-4, 0);
+                rt.anchorMin = isLeft ? new Vector2(0f, y0)   : new Vector2(0.5f, y0);
+                rt.anchorMax = isLeft ? new Vector2(0.5f, y1) : new Vector2(1f, y1);
+                rt.offsetMin = new Vector2(_artSkin ? 2f : 4f, 0);
+                rt.offsetMax = new Vector2(_artSkin ? -2f : -4f, 0);
             }
             else
             {
-                // Ocupa slot inteiro
-                rt.anchorMin = new Vector2(0f, 0.35f);
-                rt.anchorMax = new Vector2(1f, 0.85f);
-                rt.offsetMin = new Vector2(8, 0);
-                rt.offsetMax = new Vector2(-8, 0);
+                // Ocupa a caixa inteira
+                rt.anchorMin = new Vector2(_artSkin ? 0.08f : 0f, y0);
+                rt.anchorMax = new Vector2(_artSkin ? 0.92f : 1f, y1);
+                rt.offsetMin = new Vector2(m, 0);
+                rt.offsetMax = new Vector2(-m, 0);
             }
         }
 

@@ -138,16 +138,21 @@ namespace QueryQuest.Database
                 // Regex.Split com grupo capturante inclui os separadores como tokens — ignorar
                 if (Regex.IsMatch(token, @"^(AND|OR)$", RegexOptions.IgnoreCase)) continue;
 
+                // O valor é TUDO que vem depois do operador (âncora no fim): assim
+                // nada é ignorado em silêncio e nomes com apóstrofo, como
+                // 'Jato d'Agua', não são cortados no meio.
                 var condMatch = Regex.Match(token,
-                    @"(\w+)\s*(=|!=|>=|<=|>|<|LIKE)\s*'?([^']*)'?",
+                    @"^(\w+)\s*(=|!=|>=|<=|>|<|LIKE)\s*(.+)$",
                     RegexOptions.IgnoreCase);
 
                 if (!condMatch.Success)
                     return (false, $"Condição inválida: '{token}'. Exemplo: Elemento = 'Fogo'", null);
 
-                string col   = condMatch.Groups[1].Value.Trim();
-                string op    = condMatch.Groups[2].Value.Trim().ToUpper();
-                string value = condMatch.Groups[3].Value.Trim();
+                string col = condMatch.Groups[1].Value.Trim();
+                string op  = condMatch.Groups[2].Value.Trim().ToUpper();
+
+                var (okValue, valueError, value) = ParseValue(condMatch.Groups[3].Value.Trim(), token);
+                if (!okValue) return (false, valueError, null);
 
                 if (!ValidColumns[tableName].Contains(col))
                     return (false,
@@ -171,6 +176,31 @@ namespace QueryQuest.Database
             }
 
             return (true, null, conditions);
+        }
+
+        /// <summary>
+        /// Lê o valor de uma condição. Entre aspas, vale tudo que estiver entre a
+        /// PRIMEIRA e a ÚLTIMA aspa — é o que faz 'Jato d'Agua' funcionar mesmo
+        /// sem o jogador escapar o apóstrofo (o padrão SQL '' também é aceito).
+        /// </summary>
+        private (bool Success, string Error, string Value) ParseValue(string raw, string token)
+        {
+            if (string.IsNullOrEmpty(raw))
+                return (false, $"Falta o valor em: '{token}'. Exemplo: Elemento = 'Fogo'", null);
+
+            if (raw[0] == '\'')
+            {
+                if (raw.Length < 2 || raw[raw.Length - 1] != '\'')
+                    return (false, $"Aspas não fechadas em: '{token}'.", null);
+
+                return (true, null, raw.Substring(1, raw.Length - 2).Replace("''", "'"));
+            }
+
+            // Sem aspas: número ou palavra solta (ex.: Nivel = 2, Desbloqueado = 1)
+            if (raw.IndexOf('\'') >= 0)
+                return (false, $"Aspas fora de lugar em: '{token}'. Exemplo: Nome = 'Rajada'", null);
+
+            return (true, null, raw);
         }
 
         // ─────────────────────────────────────────────────────────────────────

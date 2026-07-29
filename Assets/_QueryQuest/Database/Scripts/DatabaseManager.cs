@@ -47,6 +47,7 @@ namespace QueryQuest.Database
                 // Cria tabelas se não existirem (seguro chamar sempre)
                 _db.CreateTable<SpellData>();
                 _db.CreateTable<EnemyData>();
+                _db.CreateTable<FragmentoData>();
 
                 // Popula dados iniciais se o banco estiver vazio
                 DatabaseSeeder.SeedIfEmpty(_db);

@@ -9,7 +9,7 @@ namespace QueryQuest.Combat
     /// Slots numerados de 1 a 6: jogador começa no 1, inimigo no 6.
     /// 
     /// Regras:
-    /// - Jogador e inimigo podem ocupar o mesmo slot
+    /// - Jogador e inimigo NÃO podem ocupar o mesmo slot (param adjacentes)
     /// - Magia CURTA atinge playerSlot + 1
     /// - Magia MEDIA atinge playerSlot + 2
     /// - Magia LONGA atinge playerSlot + 3
@@ -73,6 +73,9 @@ namespace QueryQuest.Combat
             if (target < SLOT_MIN || target > SLOT_MAX)
                 return MoveResult.OutOfBounds;
 
+            if (target == EnemySlot)
+                return MoveResult.Blocked;
+
             PlayerSlot = target;
             HasMovementAction = false;
 
@@ -98,14 +101,17 @@ namespace QueryQuest.Combat
         /// </summary>
         public void MoveEnemyTowardsPlayer()
         {
-            if (EnemySlot == PlayerSlot)
+            int direction = EnemySlot > PlayerSlot ? -1 : 1;
+            int target = EnemySlot + direction;
+
+            // Nunca entra no slot do jogador — para no adjacente
+            if (EnemySlot == PlayerSlot || target == PlayerSlot)
             {
-                Debug.Log("[SlotSystem] Inimigo já está no mesmo slot do jogador.");
+                Debug.Log("[SlotSystem] Inimigo já está encostado no jogador — não avança.");
                 return;
             }
 
-            int direction = EnemySlot > PlayerSlot ? -1 : 1;
-            EnemySlot += direction;
+            EnemySlot = target;
 
             Debug.Log($"[SlotSystem] Inimigo moveu para slot {EnemySlot}");
             NotifyPositionChange();
@@ -201,5 +207,6 @@ namespace QueryQuest.Combat
         Success,
         NoActionLeft,
         OutOfBounds,
+        Blocked,       // slot ocupado pelo inimigo
     }
 }

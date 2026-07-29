@@ -30,6 +30,19 @@ namespace QueryQuest.UI
         [SerializeField] private Color btnActiveColor   = new Color(0.27f, 0.25f, 0.45f);
         [SerializeField] private Color btnInactiveColor = new Color(0.12f, 0.12f, 0.18f);
 
+        /// <summary>
+        /// Chamado pelo HudSkin depois de trocar o fundo dos botões pela placa de
+        /// madeira: o tint deixa de pintar o botão e passa só a acender/apagar a arte.
+        /// </summary>
+        public void ApplyParchmentSkin()
+        {
+            btnActiveColor   = Color.white;
+            btnInactiveColor = new Color(0.55f, 0.50f, 0.45f);
+            RefreshButtons(CombatManager.Instance != null
+                ? CombatManager.Instance.CurrentState
+                : CombatState.IDLE);
+        }
+
         private void Awake()
         {
             btnBack?.onClick.AddListener(OnBackClicked);

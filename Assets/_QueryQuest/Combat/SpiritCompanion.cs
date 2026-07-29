@@ -47,58 +47,102 @@ namespace QueryQuest.Combat
             _lastState = state;
         }
 
-        /// <summary>Dá uma dica aleatória sobre o inimigo atual.</summary>
+        // As 3 dicas da partida atual (o jogador cicla entre elas clicando na lua)
+        private readonly System.Collections.Generic.List<string> _hints = new System.Collections.Generic.List<string>();
+        private string _hintsFor;
+        private int _hintIndex;
+
+        /// <summary>Faz a lua dizer uma mensagem qualquer (drops, avisos...).</summary>
+        public void Say(string message)
+        {
+            if (!string.IsNullOrEmpty(message)) OnSpiritSpeak?.Invoke(message);
+        }
+
+        /// <summary>Primeira dica — no início do combate.</summary>
         public void GiveHint()
         {
             var enemy = CombatManager.Instance?.CurrentEnemy;
             if (enemy == null) return;
 
-            string hint = GenerateHint(enemy);
-            string message = $"[ESPIRITO] {hint}";
+            BuildHints(enemy);
+            if (_hints.Count == 0) return;
 
-            CombatManager.Instance?.LogExternal(message);
-            OnSpiritSpeak?.Invoke(hint);
+            _hintIndex = 0;
+            OnSpiritSpeak?.Invoke(_hints[0]);
+
+            // Só a primeira vai para o log (com o empurrão para a magia Analise)
+            CombatManager.Instance?.LogExternal($"[ESPIRITO] {_hints[0]} {AnaliseNudge}");
         }
 
-        private string GenerateHint(EnemyData enemy)
+        /// <summary>Próxima dica — chamado ao clicar na lua. Cicla em ordem.</summary>
+        public void NextHint()
         {
-            // A dica sempre aponta para uma característica real do inimigo,
-            // mas incentiva o uso da magia Analise (com aviso sobre a mana).
-            string warning = "Tente ver ele com a magia 'Analise', mas cuidado: se você não souber o que buscar nele, pode consumir mais mana do que pensa.";
+            var enemy = CombatManager.Instance?.CurrentEnemy;
+            if (enemy == null) return;
 
-            int roll = Random.Range(0, 4);
+            BuildHints(enemy);
+            if (_hints.Count == 0) return;
 
-            switch (roll)
+            _hintIndex = (_hintIndex + 1) % _hints.Count;
+            OnSpiritSpeak?.Invoke(_hints[_hintIndex]);
+        }
+
+        /// <summary>Monta as 3 dicas do inimigo atual (uma vez por combate).</summary>
+        private void BuildHints(EnemyData enemy)
+        {
+            if (_hintsFor == enemy.Nome && _hints.Count > 0) return;
+
+            _hintsFor = enemy.Nome;
+            _hintIndex = 0;
+            _hints.Clear();
+
+            _hints.Add(ElementHint(enemy));
+            _hints.Add(DistanceHint(enemy));
+            _hints.Add(AttackHint(enemy));
+        }
+
+        private const string AnaliseNudge =
+            "Confirme com a magia 'Analise', mas cuidado: se não souber o que buscar, gasta mais mana do que pensa.";
+
+        // Dicas LEVES: nunca entregam o dado cru, só apontam a direção.
+        // Curtas o bastante para caber no balão de fala.
+
+        private string ElementHint(EnemyData enemy)
+        {
+            string clue = (enemy.FraquezaElemento ?? "").ToLower() switch
             {
-                case 0:
-                    return $"Esse ser não aguenta bem o elemento {enemy.FraquezaElemento}... {warning}";
+                "fogo"  => "o calor das chamas faz os cristais dele racharem",
+                "agua"  => "algo em água corrente incomoda esses cristais",
+                "vento" => "lâminas de vento parecem cortar bem essa pedra",
+                "terra" => "o peso da própria terra derruba esse tipo de golem",
+                "raio"  => "uma faísca certeira desperta algo ruim nesses cristais",
+                _       => "há um elemento que ele não suporta"
+            };
+            return $"Sinto que {clue}.";
+        }
 
-                case 1:
-                    string distHint = enemy.FraquezaDistancia?.ToUpper() switch
-                    {
-                        "CURTO" => "parece sofrer mais de perto",
-                        "MEDIO" => "parece vulnerável a média distância",
-                        "LONGO" => "parece frágil contra ataques de longe",
-                        _ => "tem uma fraqueza de posição estranha"
-                    };
-                    return $"Esse {distHint}. {warning}";
+        private string DistanceHint(EnemyData enemy)
+        {
+            string clue = enemy.FraquezaDistancia?.ToUpper() switch
+            {
+                "CURTO" => "ele se atrapalha quando encaram ele de perto",
+                "MEDIO" => "a guarda dele falha a uma distância média",
+                "LONGO" => "ele não sabe se defender do que vem de longe",
+                _       => "a posição em que você luta com ele importa"
+            };
+            return $"Repare: {clue}.";
+        }
 
-                case 2:
-                    string atkHint = enemy.AtaqueDistancia?.ToUpper() switch
-                    {
-                        "CURTO" => "só alcança quem está colado nele",
-                        "MEDIO" => "golpeia a média distância",
-                        "LONGO" => "ataca de muito longe",
-                        _ => "tem um ataque imprevisível"
-                    };
-                    return $"O golpe desse inimigo {atkHint}. {warning}";
-
-                case 3:
-                    return $"Sinto algo perigoso em {enemy.Nome}. {warning}";
-
-                default:
-                    return $"Que a lógica te guie, herói. {warning}";
-            }
+        private string AttackHint(EnemyData enemy)
+        {
+            string clue = enemy.AtaqueDistancia?.ToUpper() switch
+            {
+                "CURTO" => "o golpe dele só alcança quem está colado",
+                "MEDIO" => "o golpe dele alcança a média distância",
+                "LONGO" => "o golpe dele te acerta mesmo de longe",
+                _       => "o alcance do golpe dele é imprevisível"
+            };
+            return $"Cuidado: {clue}.";
         }
     }
 }

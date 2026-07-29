@@ -24,7 +24,7 @@ namespace QueryQuest.Combat
         public int TotalFloors => totalFloors;
 
         // IDs dos inimigos em ordem de dificuldade (do banco)
-        // Alfa(1, fácil) → Beta(2) → Nulo(3) → Overflow(4) → Primordial(5, boss)
+        // Golem de Fogo(1, fácil) → Agua(2) → Terra(3) → Raio(4) → Primordial(5, boss)
         private readonly int[] _floorEnemyIds = { 1, 2, 3, 4, 5 };
 
         // Eventos para a UI
@@ -97,13 +97,41 @@ namespace QueryQuest.Combat
 
         /// <summary>
         /// Carrega o inimigo do banco. A dificuldade já vem do próprio inimigo
-        /// (cada um tem HP e elemento diferentes, em ordem crescente).
+        /// (cada um tem HP e elemento diferentes, em ordem crescente); no Modo
+        /// Infinito, cada volta deixa todos eles mais fortes.
         /// </summary>
         private EnemyData LoadScaledEnemy(int enemyId, int floor)
         {
             var db = DatabaseManager.Instance.DB;
             var enemy = db.Find<EnemyData>(enemyId);
+            if (enemy == null || Loop <= 0) return enemy;
+
+            // Find devolve uma cópia nova a cada chamada, então dá para reforçar
+            // o inimigo sem alterar o banco.
+            enemy.HP = Mathf.RoundToInt(enemy.HP * (1f + 0.6f * Loop));
+            enemy.Nivel += Loop;              // o golpe dele é 10 + Nivel * 5
+            enemy.Nome = $"{enemy.Nome} +{Loop}";
             return enemy;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // MODO INFINITO
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>Voltas concluídas no Modo Infinito (0 = run normal).</summary>
+        public int Loop { get; private set; }
+
+        /// <summary>
+        /// Recomeça do primeiro golem, todos mais fortes, MANTENDO a build:
+        /// magias desbloqueadas, itens e fragmentos continuam com o jogador.
+        /// </summary>
+        public void StartInfiniteMode()
+        {
+            Loop++;
+            Debug.Log($"[FloorManager] MODO INFINITO — volta {Loop}. Build mantida.");
+            CombatManager.Instance?.LogExternal(
+                $"[MODO INFINITO] Volta {Loop}! Os golens voltam mais fortes — sua build continua com você.");
+            StartFloor(1);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -119,17 +147,28 @@ namespace QueryQuest.Combat
                 return;
             }
 
-            // Venceu o andar
-            if (CurrentFloor >= totalFloors)
+            // Venceu o andar: primeiro a cena de absorção do fragmento, e só
+            // depois a recompensa (ou a vitória final).
+            bool ultimoAndar = CurrentFloor >= totalFloors;
+
+            System.Action continuar = () =>
             {
-                Debug.Log("[FloorManager] Último andar vencido! VITÓRIA FINAL!");
-                OnRunWon?.Invoke();
-            }
+                if (ultimoAndar)
+                {
+                    Debug.Log("[FloorManager] Último andar vencido! VITÓRIA FINAL!");
+                    OnRunWon?.Invoke();
+                }
+                else
+                {
+                    Debug.Log($"[FloorManager] Andar {CurrentFloor} vencido! Mostrando recompensas.");
+                    OnRewardReady?.Invoke();
+                }
+            };
+
+            if (FragmentDropSystem.Instance != null)
+                FragmentDropSystem.Instance.BeginAbsorbPhase(CombatManager.Instance?.CurrentEnemy, continuar);
             else
-            {
-                Debug.Log($"[FloorManager] Andar {CurrentFloor} vencido! Mostrando recompensas.");
-                OnRewardReady?.Invoke();
-            }
+                continuar();
         }
 
         /// <summary>
@@ -144,7 +183,9 @@ namespace QueryQuest.Combat
         /// <summary>Reinicia a run do zero (após derrota ou vitória).</summary>
         public void RestartRun()
         {
+            Loop = 0;
             PlayerStats.Instance?.ResetStats();
+            InventarioFragmento.Instance?.Resetar();
             // Re-bloqueia todas as magias exceto as iniciais
             ResetSpellUnlocks();
             StartFloor(1);

@@ -35,6 +35,7 @@ namespace QueryQuest.Combat
         public event Action<CombatState>  OnStateChanged;
         public event Action<string>       OnCombatLog;          // mensagens para o log de combate
         public event Action<DamageResult, bool> OnDamageApplied; // resultado, isPlayerAttacking
+        public event Action<SpellData, System.Collections.Generic.List<int>, bool> OnSpellCast; // magia, slots atingidos, acertou o inimigo
         public event Action<bool>         OnCombatEnded;        // true = jogador venceu
         public event Action              OnHealthChanged;      // dispara quando HP de qualquer lado muda
 
@@ -145,10 +146,19 @@ namespace QueryQuest.Combat
                 return result;
             }
 
-            // Feitiço utilitário (Analise) não é lançável
+            // Feitiço utilitário (Analise / Inspecionar Fragmento) não é lançável
             if (result.SelectedSpell.Elemento == "Neutro" || result.SelectedSpell.Nome == "Analise")
             {
-                Log("[AVISO] Para analisar, consulte a tabela Inimigos! Ex: SELECT Elemento FROM Inimigos");
+                if (result.SelectedSpell.Nome == "Inspecionar Fragmento")
+                {
+                    // A absorção acontece na cena de pós-vitória, não durante a luta
+                    Log("[JOIN] As essências só podem ser absorvidas logo após derrotar um golem.");
+                }
+                else
+                {
+                    Log("[AVISO] Para analisar, consulte a tabela Inimigos! Ex: SELECT Elemento FROM Inimigos");
+                }
+
                 TransitionTo(CombatState.GRIMOIRE_OPEN);
                 return result;
             }
@@ -323,6 +333,10 @@ namespace QueryQuest.Combat
 
             // Verifica se o inimigo está na área atingida
             bool hits = _slots?.SpellHitsEnemy(spell.Distancia) ?? true;
+
+            // VFX: projétil + explosão (cor pelo elemento, tamanho pelo nível)
+            OnSpellCast?.Invoke(spell, targetSlots, hits);
+
             if (!hits)
             {
                 Log($"[ERRO] O inimigo (slot {_slots?.EnemySlot}) está fora da área da magia! Você errou.");

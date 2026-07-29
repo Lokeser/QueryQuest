@@ -389,7 +389,7 @@ namespace QueryQuest.UI
                 }
 
                 SkinToken(Child(slot, "PlayerToken"), "icone_jogador");
-                SkinToken(Child(slot, "EnemyToken"),  "icone_inimigo");
+                SkinToken(Child(slot, "EnemyToken"),  "icone_inimigo", 0.6f);   // 40% menor
             }
 
             var arena = FindAnyObjectByType<ArenaUI>();
@@ -403,8 +403,12 @@ namespace QueryQuest.UI
             { 0.5079f, 0.6217f }, { 0.6362f, 0.7493f }, { 0.7639f, 0.8763f },
         };
 
-        /// <summary>Troca o quadradinho colorido pelo ícone (chapéu / cabeça de golem).</summary>
-        private void SkinToken(Transform token, string spriteName)
+        /// <summary>
+        /// Troca o quadradinho colorido pelo ícone (chapéu / cabeça de golem).
+        /// A escala vai no localScale porque o ArenaUI reescreve âncoras e offsets
+        /// a cada Refresh — o localScale ele não toca, então o ajuste sobrevive.
+        /// </summary>
+        private void SkinToken(Transform token, string spriteName, float escala = 1f)
         {
             if (token == null) return;
 
@@ -416,6 +420,8 @@ namespace QueryQuest.UI
                 img.color = Color.white;
                 img.preserveAspect = true;
             }
+
+            token.localScale = Vector3.one * escala;
 
             // Centralizado na caixa, acima da faixa do número
             if (token is RectTransform rt)

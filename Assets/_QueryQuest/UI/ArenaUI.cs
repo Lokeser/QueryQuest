@@ -255,12 +255,15 @@ namespace QueryQuest.UI
             float y1 = _artSkin ? 0.96f : 0.85f;
             float m  = _artSkin ? 0f : 8f;
 
+            // Bottom -30: desce a base do token dentro da caixa desenhada
+            float bottom = _artSkin ? -30f : 0f;
+
             if (sharedSlot)
             {
                 // Lado a lado quando compartilhando slot
                 rt.anchorMin = isLeft ? new Vector2(0f, y0)   : new Vector2(0.5f, y0);
                 rt.anchorMax = isLeft ? new Vector2(0.5f, y1) : new Vector2(1f, y1);
-                rt.offsetMin = new Vector2(_artSkin ? 2f : 4f, 0);
+                rt.offsetMin = new Vector2(_artSkin ? 2f : 4f, bottom);
                 rt.offsetMax = new Vector2(_artSkin ? -2f : -4f, 0);
             }
             else
@@ -268,7 +271,7 @@ namespace QueryQuest.UI
                 // Ocupa a caixa inteira
                 rt.anchorMin = new Vector2(_artSkin ? 0.08f : 0f, y0);
                 rt.anchorMax = new Vector2(_artSkin ? 0.92f : 1f, y1);
-                rt.offsetMin = new Vector2(m, 0);
+                rt.offsetMin = new Vector2(m, bottom);
                 rt.offsetMax = new Vector2(-m, 0);
             }
         }

@@ -9,13 +9,17 @@ public class TestGrimoire : MonoBehaviour
         var combat = CombatManager.Instance;
         if (combat == null) return;
 
-        if (Keyboard.current.gKey.wasPressedThisFrame)
+        // Sem teclado (batch mode, nographics) Keyboard.current e null
+        var teclado = Keyboard.current;
+        if (teclado == null) return;
+
+        if (teclado.gKey.wasPressedThisFrame)
         {
             if (combat.CurrentState == CombatState.PLAYER_TURN)
                 combat.OpenGrimoire();
         }
 
-        if (Keyboard.current.escapeKey.wasPressedThisFrame)
+        if (teclado.escapeKey.wasPressedThisFrame)
         {
             if (combat.CurrentState == CombatState.GRIMOIRE_OPEN)
                 combat.CloseGrimoire();

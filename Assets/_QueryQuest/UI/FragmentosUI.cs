@@ -305,7 +305,7 @@ namespace QueryQuest.UI
 
             var sb = new StringBuilder();
             sb.AppendLine("<b>JOIN aceito!</b>");
-            sb.AppendLine(linhas[0].Describe());
+            sb.AppendLine(linhas[0].Describe().TrimEnd());
 
             string magia = DesbloquearMagiaNivel2(frag.Elemento);
             InventarioFragmento.Instance?.Remover(frag.FragmentoID);

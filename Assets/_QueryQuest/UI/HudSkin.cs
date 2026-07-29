@@ -96,6 +96,7 @@ namespace QueryQuest.UI
             var hud = FindAnyObjectByType<ArenaHUD>();
             if (hud != null) hud.ApplyParchmentSkin();
 
+            BuildEndTurnButton();
             BuildGrimoireButton();
             BuildGrimoireCloseButton();
             BuildFragmentosPanel();
@@ -546,6 +547,43 @@ namespace QueryQuest.UI
             FragmentosUI.Create(canvas);
         }
 
+        /// <summary>
+        /// "Encerrar Turno", à direita de "Avançar". A magia e o movimento não
+        /// passam mais a vez sozinhos — quem encerra o turno é o jogador.
+        /// </summary>
+        private void BuildEndTurnButton()
+        {
+            var bar = Find("MovementBar");
+            if (bar == null || Child(bar, "BtnEndTurn") != null) return;
+
+            var go = new GameObject("BtnEndTurn", typeof(RectTransform));
+            go.transform.SetParent(bar, false);
+            go.transform.SetAsLastSibling();   // o layout coloca depois de "Avançar"
+
+            var img = go.AddComponent<Image>();
+
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(() => CombatManager.Instance?.EndTurn());
+
+            var labelGO = new GameObject("Label", typeof(RectTransform));
+            labelGO.transform.SetParent(go.transform, false);
+            Stretch(labelGO.transform, 8f, 4f, 8f, 4f);
+
+            var label = labelGO.AddComponent<TextMeshProUGUI>();
+            label.text = "ENCERRAR TURNO";
+            label.fontSize = 13f;              // o TextStyler ainda aplica +20%
+            label.fontStyle = FontStyles.Bold;
+            label.alignment = TextAlignmentOptions.Center;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.raycastTarget = false;
+
+            // Mesma placa de madeira e tamanho dos outros botões da barra
+            StylePlaqueButton(go.transform, new Vector2(175f, 57f));
+
+            go.AddComponent<EndTurnButton>().Setup(btn);
+        }
+
         /// <summary>X no canto do grimório — fecha a tela.</summary>
         private void BuildGrimoireCloseButton()
         {
@@ -710,6 +748,36 @@ namespace QueryQuest.UI
                 if (found != null) return found;
             }
             return null;
+        }
+    }
+
+    /// <summary>Só deixa encerrar o turno quando é a vez do jogador.</summary>
+    public class EndTurnButton : MonoBehaviour
+    {
+        private Button _btn;
+
+        public void Setup(Button btn)
+        {
+            _btn = btn;
+            Refresh(CombatManager.Instance != null ? CombatManager.Instance.CurrentState : CombatState.IDLE);
+        }
+
+        private void Start()
+        {
+            if (CombatManager.Instance != null)
+                CombatManager.Instance.OnStateChanged += Refresh;
+        }
+
+        private void OnDestroy()
+        {
+            if (CombatManager.Instance != null)
+                CombatManager.Instance.OnStateChanged -= Refresh;
+        }
+
+        private void Refresh(CombatState state)
+        {
+            if (_btn == null) return;
+            _btn.interactable = state == CombatState.PLAYER_TURN || state == CombatState.GRIMOIRE_OPEN;
         }
     }
 

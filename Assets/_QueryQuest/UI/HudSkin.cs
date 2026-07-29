@@ -34,6 +34,18 @@ namespace QueryQuest.UI
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()
         {
+            // ATENÇÃO: este atributo roda UMA VEZ por execução, não a cada cena.
+            // Como o jogo agora começa pelo menu, é preciso recriar o skin a cada
+            // cena carregada — senão a HUD do combate nunca seria vestida.
+            Criar();
+            SceneManager.sceneLoaded -= AoCarregarCena;
+            SceneManager.sceneLoaded += AoCarregarCena;
+        }
+
+        private static void AoCarregarCena(Scene cena, LoadSceneMode modo) => Criar();
+
+        private static void Criar()
+        {
             var go = new GameObject("~HudSkin");
             go.AddComponent<HudSkin>();
         }
@@ -100,6 +112,7 @@ namespace QueryQuest.UI
             BuildGrimoireButton();
             BuildGrimoireCloseButton();
             BuildFragmentosPanel();
+            BuildTutorial();
             ApplyTextStyle();
         }
 
@@ -545,6 +558,58 @@ namespace QueryQuest.UI
             if (canvas == null || FragmentosUI.Instance != null) return;
 
             FragmentosUI.Create(canvas);
+        }
+
+        /// <summary>
+        /// Tutorial: abre sozinho num jogo novo e fica acessível pelo botão AJUDA,
+        /// no topo do grimório (ao lado do X).
+        /// </summary>
+        private void BuildTutorial()
+        {
+            var canvas = Find("CombatCanvas");
+            if (canvas == null || TutorialPopup.Instance != null) return;
+
+            var popup = TutorialPopup.Create(canvas);
+
+            var panel = Find("GrimoirePanel");
+            if (panel != null && Child(panel, "BtnAjuda") == null)
+            {
+                var go = new GameObject("BtnAjuda", typeof(RectTransform));
+                go.transform.SetParent(panel, false);
+                go.transform.SetAsLastSibling();
+
+                // Logo à esquerda do X que fecha o grimório
+                SetRect(go.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
+                        new Vector2(-62f, -10f), new Vector2(104f, 46f));
+
+                var img = go.AddComponent<Image>();
+                var frame = Load("hud_botao");
+                if (frame != null) UiFrame.Apply(img, frame, 0.5f);
+
+                var btn = go.AddComponent<Button>();
+                btn.targetGraphic = img;
+                btn.onClick.AddListener(popup.Abrir);
+
+                var labelGO = new GameObject("Label", typeof(RectTransform));
+                labelGO.transform.SetParent(go.transform, false);
+                Stretch(labelGO.transform, 6f, 3f, 6f, 3f);
+
+                var label = labelGO.AddComponent<TextMeshProUGUI>();
+                label.text = "AJUDA";
+                label.fontSize = 15f;
+                label.fontStyle = FontStyles.Bold;
+                label.alignment = TextAlignmentOptions.Center;
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.color = Color.white;
+                label.raycastTarget = false;
+            }
+
+            // Jogo novo → abre a explicação uma vez
+            if (GameSession.MostrarTutorial)
+            {
+                GameSession.MostrarTutorial = false;
+                popup.Abrir();
+            }
         }
 
         /// <summary>

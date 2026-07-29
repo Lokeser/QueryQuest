@@ -19,6 +19,18 @@ namespace QueryQuest.Combat
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()
         {
+            // Roda uma vez por execução: precisa recriar a cada cena, porque este
+            // objeto não sobrevive à troca (o jogo começa pelo menu).
+            Criar();
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= AoCarregarCena;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += AoCarregarCena;
+        }
+
+        private static void AoCarregarCena(UnityEngine.SceneManagement.Scene cena,
+                                           UnityEngine.SceneManagement.LoadSceneMode modo) => Criar();
+
+        private static void Criar()
+        {
             if (Instance != null) return;
             var go = new GameObject("~FragmentDrops");
             go.AddComponent<FragmentDropSystem>();

@@ -203,6 +203,8 @@ namespace QueryQuest.UI
 
                 case CombatState.PLAYER_TURN:
                 case CombatState.ENEMY_TURN:
+                case CombatState.IDLE:          // fim de combate: sai da frente da
+                                                // cena de absorção do fragmento
                     if (IsOpen) Close();
                     break;
             }

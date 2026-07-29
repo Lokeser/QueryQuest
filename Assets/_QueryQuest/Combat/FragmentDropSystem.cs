@@ -156,8 +156,8 @@ namespace QueryQuest.Combat
             bool isBoss = floor != null && floor.CurrentFloor >= floor.TotalFloors;
 
             string msg = isBoss
-                ? "Bom trabalho! O primordial caiu e deixou a essência dele. Absorva com o grimório: use o JOIN para tomar o poder dele!"
-                : $"Bom trabalho! Ele deixou uma essência de {enemy.Elemento} cair. Absorva com o grimório usando o JOIN para te fortalecer!";
+                ? "Bom trabalho! O primordial caiu e deixou a essência dele. Escreva o JOIN e tome esse poder para você!"
+                : $"Bom trabalho! Ele deixou uma essência de {enemy.Elemento} cair. Escreva o JOIN para absorvê-la e ficar mais forte!";
 
             SpiritCompanion.Instance?.Say(msg);
         }

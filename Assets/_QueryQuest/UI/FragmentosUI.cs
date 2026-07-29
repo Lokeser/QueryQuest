@@ -1,17 +1,18 @@
 // Assets/_QueryQuest/UI/FragmentosUI.cs
-// Inventário de fragmentos + inspetor por JOIN.
+// Cena de absorção, depois de derrotar um golem.
 //
-// O jogador escolhe um fragmento e marca QUAIS COLUNAS quer revelar. A tela
-// monta a query de verdade — com JOIN entre Fragmentos e Inimigos — mostra o
-// SQL na tela (é o ponto pedagógico) e executa no SQLite.
+// O jogador ESCREVE o JOIN. Não existe botão que monta a consulta por ele:
+// ele escolhe um fragmento, digita a consulta que cruza Fragmentos com
+// Inimigos e, se estiver correta, a consulta roda de verdade no SQLite e o
+// fragmento é absorvido — liberando a magia de NÍVEL 2 daquele elemento.
 //
-// ABSORVER: ao inspecionar, o fragmento é consumido e o jogador domina a magia
-// de NÍVEL 2 do elemento dele (Golem de Fogo -> magia de Fogo nível 2).
+// Botão DICA dá três degraus de ajuda, terminando no exemplo completo.
 //
-// Toda a UI é criada por código; abre pelo botão "FRAGMENTOS" da HUD.
+// Toda a UI é criada por código; abre pela cena de pós-vitória.
 
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
@@ -25,28 +26,19 @@ namespace QueryQuest.UI
     {
         public const int CustoMana = 20;
 
-        private static readonly Color Ink   = new Color(0.24f, 0.15f, 0.06f);
-        private static readonly Color Panel = new Color(0.10f, 0.06f, 0.03f, 0.92f);
-
-        // Colunas que o jogador pode marcar (rótulo -> expressão SQL)
-        private static readonly (string label, string sql)[] Colunas =
-        {
-            ("Nome",     "f.Nome"),
-            ("Tipo",     "f.Tipo"),
-            ("Elemento", "f.Elemento"),
-            ("Raridade", "f.Raridade"),
-            ("ValorXP",  "f.ValorXP"),
-            ("Pista",    "f.Pista"),
-        };
-
-        private RectTransform _root;
-        private RectTransform _lista;
-        private TextMeshProUGUI _sqlText;
-        private TextMeshProUGUI _resultText;
-        private readonly List<Toggle> _toggles = new List<Toggle>();
-        private FragmentoData _selecionado;
+        private static readonly Color Ink     = new Color(0.24f, 0.15f, 0.06f);
+        private static readonly Color Realce  = new Color(0.42f, 0.20f, 0.04f);
+        private static readonly Color Erro    = new Color(0.60f, 0.12f, 0.08f);
+        private static readonly Color Sucesso = new Color(0.12f, 0.40f, 0.16f);
+        private static readonly Color Papel   = new Color(0.99f, 0.96f, 0.87f, 0.95f);
 
         public static FragmentosUI Instance { get; private set; }
+
+        private RectTransform _lista;
+        private TextMeshProUGUI _titulo, _selecionadoTxt, _dicaTxt, _resultadoTxt;
+        private TMP_InputField _input;
+        private FragmentoData _selecionado;
+        private int _nivelDica;
 
         // ─────────────────────────────────────────────────────────────────────
         // CONSTRUÇÃO
@@ -65,9 +57,6 @@ namespace QueryQuest.UI
         private void Awake()
         {
             Instance = this;
-
-            // Assina aqui (e não no Start): o painel é criado já desativado,
-            // e Start não roda em GameObject inativo.
             FragmentDropSystem.OnAbsorbPhaseStarted += AbrirFase;
         }
 
@@ -75,71 +64,55 @@ namespace QueryQuest.UI
 
         private void Build()
         {
-            _root = (RectTransform)transform;
-            _root.anchorMin = new Vector2(0.5f, 0.5f);
-            _root.anchorMax = new Vector2(0.5f, 0.5f);
-            _root.pivot     = new Vector2(0.5f, 0.5f);
-            _root.sizeDelta = new Vector2(940f, 600f);
-            _root.anchoredPosition = Vector2.zero;
+            var raiz = (RectTransform)transform;
+            raiz.anchorMin = raiz.anchorMax = new Vector2(0.5f, 0.5f);
+            raiz.pivot = new Vector2(0.5f, 0.5f);
+            raiz.sizeDelta = new Vector2(1020f, 660f);
+            raiz.anchoredPosition = Vector2.zero;
 
-            var bg = gameObject.AddComponent<Image>();
-            var frame = Resources.Load<Sprite>("Sprites/UI/hud_painel");
-            if (frame != null) UiFrame.Apply(bg, frame);
-            else bg.color = Panel;
+            var fundo = gameObject.AddComponent<Image>();
+            var moldura = Resources.Load<Sprite>("Sprites/UI/hud_painel");
+            if (moldura != null) UiFrame.Apply(fundo, moldura);
+            else fundo.color = new Color(0.96f, 0.90f, 0.74f);
 
-            _titulo = MakeText(_root, "Titulo", "ESSENCIA DO GOLEM", 22f, Ink,
-                     new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-                     new Vector2(0f, -30f), new Vector2(-120f, 34f));
+            _titulo = Texto(raiz, "Titulo", "O GOLEM DEIXOU SUAS ESSENCIAS", 24f, Realce,
+                            0.06f, 0.05f, 0.94f, 0.12f);
 
-            // ── Coluna esquerda: inventário ──
-            _lista = MakeBox(_root, "Lista", new Vector2(0f, 0f), new Vector2(0.42f, 1f),
-                             new Vector2(46f, 60f), new Vector2(-10f, -78f));
+            // ── Coluna esquerda: os fragmentos que caíram ──
+            Texto(raiz, "LabelLista", "Fragmentos", 17f, Ink, 0.06f, 0.14f, 0.36f, 0.19f);
+
+            _lista = Caixa(raiz, "Lista", 0.06f, 0.19f, 0.36f, 0.62f);
             var layout = _lista.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 6f;
             layout.childForceExpandHeight = false;
             layout.childControlHeight = true;
             layout.childControlWidth = true;
 
-            // ── Coluna direita: colunas + SQL + resultado ──
-            var direita = MakeBox(_root, "Inspetor", new Vector2(0.42f, 0f), new Vector2(1f, 1f),
-                                  new Vector2(10f, 60f), new Vector2(-52f, -78f));
+            _selecionadoTxt = Texto(raiz, "Selecionado", "", 15f, Ink, 0.06f, 0.63f, 0.36f, 0.82f);
+            _selecionadoTxt.alignment = TextAlignmentOptions.TopLeft;
 
-            MakeText(direita, "LabelColunas", "O que voce quer revelar?", 15f, Ink,
-                     new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-                     new Vector2(0f, 0f), new Vector2(0f, 24f));
+            // ── Coluna direita: escreva o JOIN ──
+            Texto(raiz, "LabelJoin", "Escreva o JOIN que traz o fragmento e quem o largou:",
+                  16f, Realce, 0.39f, 0.14f, 0.94f, 0.20f).alignment = TextAlignmentOptions.Left;
 
-            var grid = MakeBox(direita, "Colunas", new Vector2(0f, 1f), new Vector2(1f, 1f),
-                               new Vector2(0f, -136f), new Vector2(0f, -26f));
-            var gl = grid.gameObject.AddComponent<GridLayoutGroup>();
-            gl.cellSize = new Vector2(160f, 30f);
-            gl.spacing = new Vector2(8f, 6f);
+            _input = CriarInput(raiz, 0.39f, 0.20f, 0.94f, 0.44f);
 
-            foreach (var col in Colunas) _toggles.Add(MakeToggle(grid, col.label));
-            _toggles[0].isOn = true;   // Nome vem marcado
+            _dicaTxt = Texto(raiz, "Dica", "", 15f, new Color(0.40f, 0.30f, 0.14f),
+                             0.39f, 0.45f, 0.94f, 0.66f);
+            _dicaTxt.alignment = TextAlignmentOptions.TopLeft;
 
-            _sqlText = MakeText(direita, "SQL", "", 13f, new Color(0.30f, 0.22f, 0.10f),
-                                new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0.5f, 1f),
-                                new Vector2(0f, -170f), new Vector2(0f, 92f));
-            _sqlText.alignment = TextAlignmentOptions.TopLeft;
-            _sqlText.fontStyle = FontStyles.Italic;
-
-            _resultText = MakeText(direita, "Resultado", "Escolha um fragmento a esquerda.", 15f, Ink,
-                                   new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
-                                   new Vector2(0f, -30f), new Vector2(0f, -300f));
-            _resultText.alignment = TextAlignmentOptions.TopLeft;
+            _resultadoTxt = Texto(raiz, "Resultado", "", 15f, Ink, 0.39f, 0.67f, 0.94f, 0.85f);
+            _resultadoTxt.alignment = TextAlignmentOptions.TopLeft;
 
             // ── Botões ──
-            MakeButton(_root, "BtnInspecionar", $"ABSORVER COM JOIN ({CustoMana} mana)",
-                       new Vector2(1f, 0f), new Vector2(1f, 0f),
-                       new Vector2(-52f, 16f), new Vector2(300f, 46f), Inspecionar);
-
-            _btnContinuar = MakeButton(_root, "BtnContinuar", "CONTINUAR",
-                       new Vector2(0f, 0f), new Vector2(0f, 0f),
-                       new Vector2(52f, 16f), new Vector2(220f, 46f), Continuar);
+            Botao(raiz, "CONTINUAR", 0.06f, 0.87f, 0.30f, 0.95f, Continuar);
+            Botao(raiz, "DICA",      0.38f, 0.87f, 0.56f, 0.95f, ProximaDica);
+            Botao(raiz, $"ABSORVER ({CustoMana} mana)", 0.62f, 0.87f, 0.94f, 0.95f, Absorver);
         }
 
-        private Button _btnContinuar;
-        private TextMeshProUGUI _titulo;
+        // ─────────────────────────────────────────────────────────────────────
+        // ABRIR / FECHAR
+        // ─────────────────────────────────────────────────────────────────────
 
         private void AbrirFase(List<FragmentoData> caidos)
         {
@@ -148,21 +121,10 @@ namespace QueryQuest.UI
                     ? $"O GOLEM DEIXOU: {caidos[0].Nome.ToUpper()}"
                     : "O GOLEM DEIXOU SUAS ESSENCIAS";
 
-            _resultText.text = "Escolha um fragmento e absorva com o JOIN.\n" +
-                               "Cada essencia ensina a magia de nivel 2 do elemento dela.";
+            _resultadoTxt.text = "Escolha um fragmento e escreva a consulta para absorve-lo.";
+            _resultadoTxt.color = Ink;
             Abrir();
         }
-
-        /// <summary>Encerra a cena de absorção e devolve o controle ao andar.</summary>
-        private void Continuar()
-        {
-            Fechar();
-            FragmentDropSystem.Instance?.FinishPhase();
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
-        // ABRIR / FECHAR
-        // ─────────────────────────────────────────────────────────────────────
 
         public void Abrir()
         {
@@ -172,6 +134,12 @@ namespace QueryQuest.UI
         }
 
         public void Fechar() => gameObject.SetActive(false);
+
+        private void Continuar()
+        {
+            Fechar();
+            FragmentDropSystem.Instance?.FinishPhase();
+        }
 
         private void OnEnable()
         {
@@ -192,24 +160,20 @@ namespace QueryQuest.UI
             var fragmentos = InventarioFragmento.Instance?.ObterTodos() ?? new List<FragmentoData>();
             if (fragmentos.Count == 0)
             {
-                MakeText(_lista, "Vazio", "Nenhum fragmento ainda.\nDerrote golens para coletar.",
-                         14f, Ink, Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
-                         Vector2.zero, Vector2.zero);
+                var vazio = Texto(_lista, "Vazio", "Nenhum fragmento.", 14f, Ink, 0f, 0f, 1f, 1f);
+                vazio.gameObject.AddComponent<LayoutElement>().preferredHeight = 34f;
                 _selecionado = null;
-                AtualizarSQL();
+                AtualizarSelecionado();
                 return;
             }
 
             foreach (var frag in fragmentos)
             {
-                var f = frag;   // captura por valor
+                var f = frag;
                 int qtd = InventarioFragmento.Instance.Quantidade(f.FragmentoID);
-                string rotulo = $"{f.Nome}  [{f.Elemento}] R{f.Raridade}" + (qtd > 1 ? $" x{qtd}" : "");
+                string rotulo = $"{f.Nome}  R{f.Raridade}" + (qtd > 1 ? $" x{qtd}" : "");
 
-                var btn = MakeButton(_lista, $"Frag{f.FragmentoID}", rotulo,
-                                     Vector2.zero, Vector2.zero, Vector2.zero,
-                                     new Vector2(0f, 34f), () => Selecionar(f));
-
+                var btn = Botao(_lista, rotulo, 0f, 0f, 1f, 1f, () => Selecionar(f), 14f);
                 var le = btn.gameObject.AddComponent<LayoutElement>();
                 le.minHeight = le.preferredHeight = 34f;
             }
@@ -217,74 +181,132 @@ namespace QueryQuest.UI
             if (_selecionado != null && InventarioFragmento.Instance.Quantidade(_selecionado.FragmentoID) <= 0)
                 _selecionado = null;
 
-            AtualizarSQL();
+            AtualizarSelecionado();
         }
 
         private void Selecionar(FragmentoData frag)
         {
             _selecionado = frag;
-            _resultText.text = $"{frag.Nome}\n<size=90%>{frag.Descricao}</size>";
-            AtualizarSQL();
+            _nivelDica = 0;
+            _dicaTxt.text = "";
+            AtualizarSelecionado();
+        }
+
+        private void AtualizarSelecionado()
+        {
+            if (_selecionadoTxt == null) return;
+
+            if (_selecionado == null)
+            {
+                _selecionadoTxt.text = "<i>Nenhum fragmento selecionado.</i>";
+                return;
+            }
+
+            _selecionadoTxt.text =
+                $"<b>{_selecionado.Nome}</b>\n" +
+                $"Elemento: {_selecionado.Elemento}\n" +
+                $"FragmentoID: <b>{_selecionado.FragmentoID}</b>\n" +
+                $"<size=90%><i>{_selecionado.Descricao}</i></size>";
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // A QUERY (o JOIN)
+        // DICAS (três degraus, do conceito ao exemplo)
         // ─────────────────────────────────────────────────────────────────────
 
-        private string MontarQuery(FragmentoData frag)
+        private void ProximaDica()
         {
-            var colunas = new List<string>();
-            for (int i = 0; i < Colunas.Length; i++)
-                if (_toggles[i].isOn) colunas.Add(Colunas[i].sql);
+            if (_selecionado == null)
+            {
+                _dicaTxt.text = "Escolha um fragmento primeiro.";
+                return;
+            }
 
-            if (colunas.Count == 0) colunas.Add("f.Nome");
-            colunas.Add("i.Nome AS Inimigo");   // o JOIN sempre revela de quem veio
+            _nivelDica = Mathf.Min(_nivelDica + 1, 3);
+            int id = _selecionado.FragmentoID;
 
-            int id = frag?.FragmentoID ?? 0;
-            return $"SELECT {string.Join(", ", colunas)}\n" +
-                   $"FROM Fragmentos f\n" +
-                   $"JOIN Inimigos i ON f.InimigoID = i.Id\n" +
-                   $"WHERE f.FragmentoID = {id}";
+            switch (_nivelDica)
+            {
+                case 1:
+                    _dicaTxt.text =
+                        "<b>Dica 1/3</b> — A informacao esta em DUAS tabelas: <b>Fragmentos</b> " +
+                        "(o item que caiu) e <b>Inimigos</b> (quem largou). Uma consulta que le " +
+                        "as duas de uma vez usa <b>JOIN</b>.";
+                    break;
+
+                case 2:
+                    _dicaTxt.text =
+                        "<b>Dica 2/3</b> — A ponte entre elas e a coluna <b>InimigoID</b> de " +
+                        "Fragmentos, que aponta para o <b>Id</b> de Inimigos. E o ON diz isso:\n" +
+                        "<i>... JOIN Inimigos i ON f.InimigoID = i.Id</i>\n" +
+                        $"Nao esqueca de filtrar so este fragmento: <b>WHERE f.FragmentoID = {id}</b>";
+                    break;
+
+                default:
+                    _dicaTxt.text =
+                        "<b>Dica 3/3</b> — Exemplo completo:\n" +
+                        "<color=#6B3410>SELECT f.Nome, i.Nome AS Inimigo\n" +
+                        "FROM Fragmentos f\n" +
+                        $"JOIN Inimigos i ON f.InimigoID = i.Id\n" +
+                        $"WHERE f.FragmentoID = {id}</color>";
+                    break;
+            }
         }
 
-        private void AtualizarSQL()
-        {
-            if (_sqlText != null) _sqlText.text = _selecionado == null ? "" : MontarQuery(_selecionado);
-        }
+        // ─────────────────────────────────────────────────────────────────────
+        // ABSORVER (valida o JOIN escrito pelo jogador)
+        // ─────────────────────────────────────────────────────────────────────
 
-        private void Inspecionar()
+        private void Absorver()
         {
-            // Trabalha numa cópia local: consumir o fragmento dispara
-            // OnInventarioChanged -> Refresh(), que zera _selecionado no meio
-            // deste método.
             var frag = _selecionado;
             if (frag == null)
             {
-                _resultText.text = "Escolha um fragmento na lista.";
+                Falha("Escolha um fragmento na lista.");
+                return;
+            }
+
+            string consulta = _input != null ? _input.text : "";
+            var (ok, erro) = ValidarJoin(consulta, frag);
+            if (!ok)
+            {
+                Falha(erro);
                 return;
             }
 
             var mana = ManaSystem.Instance;
             if (mana != null && !mana.HasMana(CustoMana))
             {
-                _resultText.text = $"Mana insuficiente. O JOIN custa {CustoMana}.";
+                Falha($"Mana insuficiente. Absorver custa {CustoMana}.");
                 return;
             }
 
             var db = DatabaseManager.Instance?.DB;
-            if (db == null) return;
+            if (db == null) { Falha("Banco indisponivel."); return; }
 
-            string query = MontarQuery(frag);
-            var linhas = db.Query<FragmentoJoinRow>(query.Replace("\n", " "));
+            List<FragmentoJoinRow> linhas;
+            try
+            {
+                linhas = db.Query<FragmentoJoinRow>(consulta.Replace("\n", " ").Replace("\r", " "));
+            }
+            catch (System.Exception e)
+            {
+                Falha($"O SQLite recusou a consulta: {e.Message}");
+                return;
+            }
+
+            if (linhas == null || linhas.Count == 0)
+            {
+                Falha("A consulta rodou, mas nao devolveu nenhuma linha. " +
+                      "Confira o ON e o WHERE.");
+                return;
+            }
 
             mana?.SpendMana(CustoMana);
 
             var sb = new StringBuilder();
-            sb.AppendLine("<b>Resultado do JOIN</b>");
-            if (linhas != null && linhas.Count > 0)
-                sb.AppendLine(linhas[0].Describe());
+            sb.AppendLine("<b>JOIN aceito!</b>");
+            sb.AppendLine(linhas[0].Describe());
 
-            // ── Absorção: domina a magia de nível 2 do elemento ──
             string magia = DesbloquearMagiaNivel2(frag.Elemento);
             InventarioFragmento.Instance?.Remover(frag.FragmentoID);
 
@@ -301,8 +323,53 @@ namespace QueryQuest.UI
             }
 
             _selecionado = null;
+            _input.text = "";
+            _dicaTxt.text = "";
             Refresh();
-            _resultText.text = sb.ToString();   // depois do Refresh, que reescreve a tela
+
+            _resultadoTxt.color = Sucesso;
+            _resultadoTxt.text = sb.ToString();
+        }
+
+        private void Falha(string msg)
+        {
+            _resultadoTxt.color = Erro;
+            _resultadoTxt.text = msg;
+        }
+
+        /// <summary>
+        /// Confere se a consulta é de fato um JOIN entre as duas tabelas, filtrando
+        /// o fragmento escolhido. Aceita variações de alias, ordem e espaçamento —
+        /// o que importa é o jogador ter entendido a ligação.
+        /// </summary>
+        private static (bool ok, string erro) ValidarJoin(string consulta, FragmentoData frag)
+        {
+            if (string.IsNullOrWhiteSpace(consulta))
+                return (false, "Escreva a consulta no campo acima. Sem ideia? Use o botao DICA.");
+
+            string s = Regex.Replace(consulta, @"\s+", " ").Trim().ToUpperInvariant();
+
+            // Só leitura: nada de encadear comandos ou alterar o banco
+            if (s.Contains(";"))
+                return (false, "Uma consulta so, sem ponto e virgula.");
+            if (Regex.IsMatch(s, @"\b(DROP|DELETE|UPDATE|INSERT|ALTER|CREATE|PRAGMA)\b"))
+                return (false, "Aqui so entra consulta de leitura (SELECT).");
+
+            if (!s.StartsWith("SELECT"))
+                return (false, "A consulta precisa comecar com SELECT.");
+            if (!Regex.IsMatch(s, @"\bFROM\s+FRAGMENTOS\b"))
+                return (false, "Comece pela tabela do item: FROM Fragmentos");
+            if (!Regex.IsMatch(s, @"\bJOIN\s+INIMIGOS\b"))
+                return (false, "Falta trazer a outra tabela: JOIN Inimigos");
+            if (!Regex.IsMatch(s, @"\bON\b"))
+                return (false, "O JOIN precisa do ON dizendo como as tabelas se ligam.");
+            if (!Regex.IsMatch(s, @"ON\s+[\w.]*INIMIGOID\s*=\s*[\w.]*\bID\b") &&
+                !Regex.IsMatch(s, @"ON\s+[\w.]*\bID\b\s*=\s*[\w.]*INIMIGOID"))
+                return (false, "A ligacao certa e InimigoID (de Fragmentos) = Id (de Inimigos).");
+            if (!Regex.IsMatch(s, $@"\bFRAGMENTOID\s*=\s*{frag.FragmentoID}\b"))
+                return (false, $"Filtre o fragmento escolhido: WHERE f.FragmentoID = {frag.FragmentoID}");
+
+            return (true, null);
         }
 
         /// <summary>Desbloqueia a magia nível 2 do elemento. Retorna o nome, ou null se já estava.</summary>
@@ -322,7 +389,7 @@ namespace QueryQuest.UI
             return magia.Nome;
         }
 
-        /// <summary>Linha do resultado do JOIN (as colunas variam conforme os toggles).</summary>
+        /// <summary>Linha do resultado (as colunas variam conforme o SELECT do jogador).</summary>
         private class FragmentoJoinRow
         {
             public string Nome { get; set; }
@@ -351,96 +418,125 @@ namespace QueryQuest.UI
         // HELPERS DE UI
         // ─────────────────────────────────────────────────────────────────────
 
-        private static RectTransform MakeBox(Transform parent, string name, Vector2 aMin, Vector2 aMax,
-                                             Vector2 offMin, Vector2 offMax)
+        /// <summary>Posiciona por fração do painel (y medido a partir do topo).</summary>
+        private static void Fracao(Transform t, float x0, float yTop0, float x1, float yTop1)
         {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = aMin; rt.anchorMax = aMax;
-            rt.offsetMin = offMin; rt.offsetMax = offMax;
-            return rt;
+            var rt = (RectTransform)t;
+            rt.anchorMin = new Vector2(x0, 1f - yTop1);
+            rt.anchorMax = new Vector2(x1, 1f - yTop0);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
         }
 
-        private static TextMeshProUGUI MakeText(Transform parent, string name, string text, float size,
-                                                Color color, Vector2 aMin, Vector2 aMax, Vector2 pivot,
-                                                Vector2 pos, Vector2 sizeDelta)
+        private static void Esticar(Transform t, float l, float b, float r, float top)
         {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = aMin; rt.anchorMax = aMax; rt.pivot = pivot;
-            rt.sizeDelta = sizeDelta; rt.anchoredPosition = pos;
+            var rt = (RectTransform)t;
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = new Vector2(l, b);
+            rt.offsetMax = new Vector2(-r, -top);
+        }
+
+        private static RectTransform Caixa(Transform pai, string nome,
+                                           float x0, float y0, float x1, float y1)
+        {
+            var go = new GameObject(nome, typeof(RectTransform));
+            go.transform.SetParent(pai, false);
+            Fracao(go.transform, x0, y0, x1, y1);
+            return (RectTransform)go.transform;
+        }
+
+        private static TextMeshProUGUI Texto(Transform pai, string nome, string texto, float tamanho,
+                                             Color cor, float x0, float y0, float x1, float y1)
+        {
+            var go = new GameObject(nome, typeof(RectTransform));
+            go.transform.SetParent(pai, false);
+            Fracao(go.transform, x0, y0, x1, y1);
 
             var tmp = go.AddComponent<TextMeshProUGUI>();
-            tmp.text = text;
-            tmp.fontSize = size;
-            tmp.color = color;
+            tmp.text = texto;
+            tmp.fontSize = tamanho;
+            tmp.color = cor;
             tmp.fontStyle = FontStyles.Bold;
             tmp.alignment = TextAlignmentOptions.Center;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
             tmp.raycastTarget = false;
             return tmp;
         }
 
-        private static Button MakeButton(Transform parent, string name, string label,
-                                         Vector2 anchor, Vector2 anchorMax, Vector2 pos,
-                                         Vector2 size, UnityEngine.Events.UnityAction onClick)
+        private static TMP_InputField CriarInput(Transform pai, float x0, float y0, float x1, float y1)
         {
-            var go = new GameObject(name, typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-            var rt = (RectTransform)go.transform;
-            rt.anchorMin = anchor; rt.anchorMax = anchorMax; rt.pivot = anchor;
-            rt.sizeDelta = size; rt.anchoredPosition = pos;
+            var go = new GameObject("InputJoin", typeof(RectTransform));
+            go.transform.SetParent(pai, false);
+            Fracao(go.transform, x0, y0, x1, y1);
+
+            var bg = go.AddComponent<Image>();
+            bg.color = Papel;
+
+            var input = go.AddComponent<TMP_InputField>();
+            input.lineType = TMP_InputField.LineType.MultiLineNewline;
+            input.targetGraphic = bg;
+
+            // O TMP_InputField precisa de viewport + texto + placeholder montados à mão
+            var area = new GameObject("Text Area", typeof(RectTransform));
+            area.transform.SetParent(go.transform, false);
+            Esticar(area.transform, 12f, 8f, 12f, 8f);
+            area.AddComponent<RectMask2D>();
+
+            var textoGO = new GameObject("Text", typeof(RectTransform));
+            textoGO.transform.SetParent(area.transform, false);
+            Esticar(textoGO.transform, 0f, 0f, 0f, 0f);
+            var texto = textoGO.AddComponent<TextMeshProUGUI>();
+            texto.fontSize = 16f;
+            texto.color = Ink;
+            texto.alignment = TextAlignmentOptions.TopLeft;
+            texto.textWrappingMode = TextWrappingModes.Normal;
+            texto.richText = false;
+
+            var phGO = new GameObject("Placeholder", typeof(RectTransform));
+            phGO.transform.SetParent(area.transform, false);
+            Esticar(phGO.transform, 0f, 0f, 0f, 0f);
+            var ph = phGO.AddComponent<TextMeshProUGUI>();
+            ph.text = "SELECT ... FROM Fragmentos f JOIN Inimigos i ON ... WHERE ...";
+            ph.fontSize = 15f;
+            ph.color = new Color(0.55f, 0.45f, 0.30f);
+            ph.fontStyle = FontStyles.Italic;
+            ph.alignment = TextAlignmentOptions.TopLeft;
+
+            input.textViewport = (RectTransform)area.transform;
+            input.textComponent = texto;
+            input.placeholder = ph;
+            input.text = "";
+            return input;
+        }
+
+        private static Button Botao(Transform pai, string rotulo,
+                                    float x0, float y0, float x1, float y1,
+                                    UnityEngine.Events.UnityAction aoClicar, float tamanhoFonte = 15f)
+        {
+            var go = new GameObject($"Btn{rotulo}", typeof(RectTransform));
+            go.transform.SetParent(pai, false);
+            Fracao(go.transform, x0, y0, x1, y1);
 
             var img = go.AddComponent<Image>();
-            var frame = Resources.Load<Sprite>("Sprites/UI/hud_botao");
-            if (frame != null) UiFrame.Apply(img, frame, 0.5f);
+            var placa = Resources.Load<Sprite>("Sprites/UI/hud_botao");
+            if (placa != null) UiFrame.Apply(img, placa, 0.5f);
             else img.color = new Color(0.35f, 0.22f, 0.10f);
 
             var btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
-            btn.onClick.AddListener(onClick);
+            btn.onClick.AddListener(aoClicar);
 
-            var tmp = MakeText(go.transform, "Label", label, 14f, Color.white,
-                               Vector2.zero, Vector2.one, new Vector2(0.5f, 0.5f),
-                               Vector2.zero, Vector2.zero);
-            tmp.rectTransform.offsetMin = new Vector2(8f, 2f);
-            tmp.rectTransform.offsetMax = new Vector2(-8f, -2f);
+            var cores = btn.colors;
+            cores.normalColor = cores.selectedColor = cores.highlightedColor = Color.white;
+            cores.pressedColor = new Color(0.85f, 0.85f, 0.85f);
+            cores.disabledColor = new Color(0.62f, 0.58f, 0.52f);
+            btn.colors = cores;
+
+            var label = Texto(go.transform, "Label", rotulo, tamanhoFonte, Color.white, 0f, 0f, 1f, 1f);
+            label.rectTransform.offsetMin = new Vector2(8f, 3f);
+            label.rectTransform.offsetMax = new Vector2(-8f, -3f);
             return btn;
-        }
-
-        private static Toggle MakeToggle(Transform parent, string label)
-        {
-            var go = new GameObject($"Toggle{label}", typeof(RectTransform));
-            go.transform.SetParent(parent, false);
-
-            var bg = new GameObject("Box", typeof(RectTransform));
-            bg.transform.SetParent(go.transform, false);
-            var bgRT = (RectTransform)bg.transform;
-            bgRT.anchorMin = new Vector2(0f, 0.5f); bgRT.anchorMax = new Vector2(0f, 0.5f);
-            bgRT.pivot = new Vector2(0f, 0.5f);
-            bgRT.sizeDelta = new Vector2(22f, 22f);
-            bgRT.anchoredPosition = new Vector2(2f, 0f);
-            var bgImg = bg.AddComponent<Image>();
-            bgImg.color = new Color(0.94f, 0.88f, 0.72f);
-
-            var check = new GameObject("Check", typeof(RectTransform));
-            check.transform.SetParent(bg.transform, false);
-            var chRT = (RectTransform)check.transform;
-            chRT.anchorMin = Vector2.zero; chRT.anchorMax = Vector2.one;
-            chRT.offsetMin = new Vector2(4f, 4f); chRT.offsetMax = new Vector2(-4f, -4f);
-            var chImg = check.AddComponent<Image>();
-            chImg.color = new Color(0.35f, 0.20f, 0.06f);
-
-            MakeText(go.transform, "Label", label, 14f, Ink,
-                     new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(0.5f, 0.5f),
-                     new Vector2(14f, 0f), new Vector2(-32f, 0f)).alignment = TextAlignmentOptions.Left;
-
-            var toggle = go.AddComponent<Toggle>();
-            toggle.targetGraphic = bgImg;
-            toggle.graphic = chImg;
-            toggle.isOn = false;
-            return toggle;
         }
     }
 }

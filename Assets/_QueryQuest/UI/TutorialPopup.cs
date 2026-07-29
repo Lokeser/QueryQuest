@@ -68,6 +68,7 @@ namespace QueryQuest.UI
                 Titulo = "DERROTOU O GOLEM? USE JOIN.",
                 Corpo  = "Cada golem derrotado deixa cair <b>fragmentos</b> da própria essência. Para absorver, você cruza duas tabelas com <b>JOIN</b>:\n\n" +
                          "<color=#6B3410><b>FROM Fragmentos f JOIN Inimigos i ON f.InimigoID = i.Id</b></color>\n\n" +
+                         "Ninguém escreve por você: na tela de absorção você <b>digita a consulta</b>, e ela roda de verdade no banco. Se travar, o botão <b>DICA</b> ajuda em três degraus.\n\n" +
                          "Absorver um fragmento ensina a você a <b>magia de nível 2</b> daquele elemento. É assim que sua build cresce ao longo dos 5 andares.",
             },
             new Pagina

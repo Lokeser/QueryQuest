@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: f5646db28c9ba5e4380bf9d6616a4090
+guid: fca923357934cd041881e392653532db
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 8210692100706530619
-    second: hud_baixo_0
+      213: -3140427091181464646
+    second: hud_botao_mov_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -113,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: hud_baixo_0
+      name: hud_botao_mov_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 1522
-        height: 607
+        width: 1452
+        height: 662
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: b35f7b6a6fc32f170800000000000000
-      internalID: 8210692100706530619
+      spriteID: ab39d130336fa64d0800000000000000
+      internalID: -3140427091181464646
       vertices: []
       indices: 
       edges: []

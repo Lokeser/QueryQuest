@@ -31,6 +31,32 @@ namespace QueryQuest.UI
         /// <summary>Fundo das telas cheias, num marrom próximo ao da HUD.</summary>
         private static readonly Color ScreenTint = new Color(0.10f, 0.06f, 0.03f, 0.90f);
 
+        // ─────────────────────────────────────────────────────────────────────
+        // A BARRA DE BAIXO (hud_baixo)
+        //
+        // A arte já vem com o arco central e as caixas dos botões DESENHADAS,
+        // então ela nunca é esticada: entra na proporção original e cada botão
+        // é colocado por fração da imagem, na caixa que lhe pertence.
+        // Números medidos nos pixels da arte (1522x607, já sem o fundo):
+        //   (x0, x1, yTopo0, yTopo1) — y contado a partir do TOPO da imagem.
+        // ─────────────────────────────────────────────────────────────────────
+
+        private const float ArteBaixoW = 1522f;
+        private const float ArteBaixoH = 607f;
+
+        private static readonly Vector4 SlotVoltar   = new Vector4(0.1886f, 0.3377f, 0.6755f, 0.8929f);
+        private static readonly Vector4 SlotManter   = new Vector4(0.3568f, 0.5046f, 0.6771f, 0.9012f);
+        private static readonly Vector4 SlotAvancar  = new Vector4(0.5230f, 0.6787f, 0.6738f, 0.8979f);
+        private static readonly Vector4 SlotTurno    = new Vector4(0.7359f, 0.9501f, 0.6705f, 0.9012f);
+        private static readonly Vector4 SlotGrimorio = new Vector4(0.4238f, 0.5644f, 0.1779f, 0.4975f);
+
+        /// <summary>Proporção das placas recortadas, para encaixar sem deformar.</summary>
+        private const float PlacaMovAspect   = 1452f / 662f;    // ~2.193
+        private const float PlacaTurnoAspect = 1493f / 592f;    // ~2.522
+
+        /// <summary>Tamanho que a barra recebeu nesta resolução.</summary>
+        private Vector2 _barSize;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()
         {
@@ -86,9 +112,12 @@ namespace QueryQuest.UI
 
             SkinReplace("CombatLogPanel",   "hud_registro");
 
-            // O livro e os botões são posicionados por fração da arte, então a
-            // barra também precisa esticar por igual (sem 9-slice).
-            SkinReplace("MovementBar", "hud_baixo", middleFraction: 0.30f);
+            // A barra NUNCA estica: o rect dela já tem a proporção exata da arte
+            // (ver LayoutBottomBar), então a imagem entra inteira e o arco central
+            // e as caixas dos botões continuam com o desenho original.
+            SkinReplace("MovementBar", "hud_baixo", simple: true);
+            var barImg = Find("MovementBar")?.GetComponent<Image>();
+            if (barImg != null) barImg.preserveAspect = true;
 
             // O log tem texto claro (feito para fundo preto): sobre o pergaminho
             // ele precisa virar tinta escura.
@@ -101,7 +130,7 @@ namespace QueryQuest.UI
             SkinScreen("RewardScreen", new Vector2(1060f, 620f));
             SkinScreen("EndScreen",    new Vector2(820f, 520f));
 
-            StyleMovementButtons();
+            LayoutBotoesDaBarra();
             StylePlaqueButton(Find("RestartButton"), null);   // mantém o rect da cena
 
             // Paletas legíveis sobre as novas artes
@@ -114,15 +143,6 @@ namespace QueryQuest.UI
             BuildFragmentosPanel();
             BuildTutorial();
             ApplyTextStyle();
-        }
-
-        /// <summary>Placa de madeira, 30% maiores e rótulo branco.</summary>
-        private void StyleMovementButtons()
-        {
-            var size = new Vector2(175f, 57f);
-            StylePlaqueButton(Find("BtnBack"),   size);
-            StylePlaqueButton(Find("BtnStay"),   size);
-            StylePlaqueButton(Find("BtnFoward"), size);
         }
 
         /// <summary>Botão com placa de madeira e rótulo branco. size null = mantém o da cena.</summary>
@@ -452,27 +472,139 @@ namespace QueryQuest.UI
         }
 
         /// <summary>
-        /// Barra inferior ocupando a largura da tela. A arte nova é um pergaminho
-        /// simples, então o 9-slice dá conta de esticar sem perder as pontas.
+        /// Barra inferior: console central apoiado na base, SEM esticar. A arte
+        /// manda na proporção; o tamanho sai do menor entre 62% da largura e 34%
+        /// da altura da tela. Assim ela fica generosa num monitor comum, não
+        /// engole a arena num ultrawide e não estoura a altura num 4:3.
         /// </summary>
         private void LayoutBottomBar()
         {
             var bar = Find("MovementBar");
             if (bar == null) return;
 
-            SetRect(bar, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
-                    Vector2.zero, new Vector2(0f, 200f));
+            _barSize = TamanhoDaBarra(TamanhoDoCanvas(bar));
 
-            // Ordem original: Voltar | Manter | Avançar, centralizados
+            SetRect(bar, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                    Vector2.zero, _barSize);
+
+            // Os botões não são mais distribuídos por layout: cada um vai para a
+            // caixa que já está desenhada no banner (ver LayoutBotoesDaBarra).
             var group = bar.GetComponent<HorizontalLayoutGroup>();
-            if (group != null)
+            if (group != null) group.enabled = false;
+        }
+
+        /// <summary>
+        /// Tamanho da barra para uma tela qualquer, SEMPRE na proporção da arte.
+        /// Cabe em 62% da largura e 34% da altura — quem apertar primeiro manda.
+        /// </summary>
+        public static Vector2 TamanhoDaBarra(Vector2 tela)
+        {
+            float escala = Mathf.Min(tela.x * 0.62f / ArteBaixoW,
+                                     tela.y * 0.34f / ArteBaixoH);
+            return new Vector2(ArteBaixoW * escala, ArteBaixoH * escala);
+        }
+
+        private static Vector2 TamanhoDoCanvas(Transform dentroDe)
+        {
+            var canvas = dentroDe != null ? dentroDe.GetComponentInParent<Canvas>() : null;
+            var rt = canvas != null ? canvas.rootCanvas.transform as RectTransform : null;
+            return rt != null ? rt.rect.size : new Vector2(1920f, 1080f);
+        }
+
+        /// <summary>
+        /// Voltar / Manter / Avançar nas três caixas juntas, cada um com a placa
+        /// nova encaixada sem deformar.
+        /// </summary>
+        private void LayoutBotoesDaBarra()
+        {
+            var bar = Find("MovementBar");
+            if (bar == null) return;
+
+            MontarBotaoDaBarra(bar, Find("BtnBack"),   SlotVoltar,  "hud_botao_mov", PlacaMovAspect);
+            MontarBotaoDaBarra(bar, Find("BtnStay"),   SlotManter,  "hud_botao_mov", PlacaMovAspect);
+            MontarBotaoDaBarra(bar, Find("BtnFoward"), SlotAvancar, "hud_botao_mov", PlacaMovAspect);
+        }
+
+        /// <summary>
+        /// Encaixa um botão numa caixa desenhada do banner: a placa entra com
+        /// preserveAspect (fica centrada, nunca esticada) e o rótulo se ajusta
+        /// sozinho ao espaço que a placa realmente ocupa.
+        /// </summary>
+        private void MontarBotaoDaBarra(Transform bar, Transform t, Vector4 frac,
+                                        string spriteName, float placaAspect)
+        {
+            if (t == null) return;
+
+            NaFracao(bar, t, frac);
+
+            var img = t.GetComponent<Image>();
+            if (img == null) img = t.gameObject.AddComponent<Image>();
+            var placa = Load(spriteName);
+            if (placa != null)
             {
-                group.enabled = true;
-                group.childAlignment = TextAnchor.MiddleCenter;
-                group.childForceExpandWidth = false;
-                group.spacing = 26f;
-                group.padding = new RectOffset(40, 40, 26, 24);
+                img.sprite = placa;
+                img.type = Image.Type.Simple;
+                img.preserveAspect = true;      // é isto que impede o esticão
+                img.color = Color.white;
             }
+
+            // Com o HorizontalLayoutGroup desligado o LayoutElement não manda
+            // mais em nada, mas deixá-lo por aí confunde quem for depurar.
+            var le = t.GetComponent<LayoutElement>();
+            if (le != null) le.ignoreLayout = true;
+
+            var btn = t.GetComponent<Button>();
+            if (btn != null)
+            {
+                var cb = btn.colors;
+                cb.normalColor      = Color.white;
+                cb.highlightedColor = new Color(1f, 0.97f, 0.85f);   // acende de leve
+                cb.pressedColor     = new Color(0.82f, 0.78f, 0.70f);
+                cb.selectedColor    = Color.white;
+                cb.disabledColor    = new Color(0.62f, 0.58f, 0.52f);
+                cb.fadeDuration     = 0.08f;
+                btn.colors = cb;
+            }
+
+            // Área que a placa realmente ocupa dentro da caixa
+            var caixa = new Vector2((frac.y - frac.x) * _barSize.x,
+                                    (frac.w - frac.z) * _barSize.y);
+            var placaSize = new Vector2(Mathf.Min(caixa.x, caixa.y * placaAspect),
+                                        Mathf.Min(caixa.y, caixa.x / placaAspect));
+
+            foreach (var label in t.GetComponentsInChildren<TextMeshProUGUI>(true))
+            {
+                SetRect(label.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                        new Vector2(0.5f, 0.5f), Vector2.zero,
+                        new Vector2(placaSize.x * 0.80f, placaSize.y * 0.56f));
+
+                label.color = Ink;                       // tinta sobre o pergaminho
+                label.fontStyle = FontStyles.Bold;
+                label.alignment = TextAlignmentOptions.Center;
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.raycastTarget = false;
+
+                // Auto-size: o mesmo rótulo serve de 720p a 4K sem estourar a placa
+                label.enableAutoSizing = true;
+                label.fontSizeMin = 6f;
+                label.fontSizeMax = Mathf.Max(10f, placaSize.y * 0.40f);
+            }
+        }
+
+        /// <summary>Posiciona um filho numa região medida em fração da arte do pai.</summary>
+        private static RectTransform NaFracao(Transform pai, Transform filho, Vector4 frac)
+        {
+            if (filho == null) return null;
+
+            var rt = filho as RectTransform;
+            if (rt == null) rt = filho.gameObject.AddComponent<RectTransform>();
+            if (filho.parent != pai) filho.SetParent(pai, false);
+
+            rt.anchorMin = new Vector2(frac.x, 1f - frac.w);
+            rt.anchorMax = new Vector2(frac.y, 1f - frac.z);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            return rt;
         }
 
         /// <summary>
@@ -493,59 +625,43 @@ namespace QueryQuest.UI
         }
 
         /// <summary>
-        /// O livro DESENHADO na barra vira área clicável, e o botão "Abrir
-        /// Grimório" fica logo abaixo dele. Passar o mouse em qualquer um acende
-        /// o livro; clicar em qualquer um abre o grimório.
+        /// O grimório mora no medalhão redondo do topo da barra: só o ícone do
+        /// livro, sem placa e sem rótulo. Fechado por padrão, acende (abre) quando
+        /// o mouse passa por cima e abre o grimório no clique.
         /// </summary>
         private void BuildGrimoireButton()
         {
-            var section = Find("ArenaSection");
-            if (section == null || Child(section, "BtnGrimoire") != null) return;
+            var bar = Find("MovementBar");
+            if (bar == null || Child(bar, "BtnGrimoire") != null) return;
 
             var go = new GameObject("BtnGrimoire", typeof(RectTransform));
-            go.transform.SetParent(section, false);
-            // Centralizado, apoiado na borda de cima da barra (que tem 200 de altura)
-            SetRect(go.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                    new Vector2(0f, 143f), new Vector2(264f, 75f));
+            NaFracao(bar, go.transform, SlotGrimorio);
 
+            // Sem arte própria: o medalhão já está desenhado no banner. A imagem
+            // existe só para o botão ter o que receber de raycast.
             var img = go.AddComponent<Image>();
-            var frame = Load("hud_botao");
-            if (frame != null) UiFrame.Apply(img, frame, 0.5f);
+            img.color = new Color(1f, 1f, 1f, 0f);
 
             var btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
             btn.onClick.AddListener(() => CombatManager.Instance?.OpenGrimoire());
 
-            // Ícone do livro: fechado, abre quando o mouse passa por cima do botão
+            // O tint do Button pintaria a imagem invisível, não o livro
+            var cb = btn.colors;
+            cb.normalColor = cb.highlightedColor = cb.pressedColor =
+                cb.selectedColor = cb.disabledColor = new Color(1f, 1f, 1f, 0f);
+            btn.colors = cb;
+
             var iconGO = new GameObject("BookIcon", typeof(RectTransform));
             iconGO.transform.SetParent(go.transform, false);
-            SetRect(iconGO.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                    new Vector2(14f, 0f), new Vector2(62f, 52f));
-            var iconImg = iconGO.AddComponent<Image>();
-            iconImg.raycastTarget = false;
-            iconImg.preserveAspect = true;
+            Stretch(iconGO.transform, 0f, 0f, 0f, 0f);
 
-            // O handler vai no BOTÃO (é ele que recebe o ponteiro; o ícone não)
+            var iconImg = iconGO.AddComponent<Image>();
+            iconImg.raycastTarget = false;      // quem recebe o ponteiro é o botão
+            iconImg.preserveAspect = true;      // o livro nunca deforma no círculo
+
             go.AddComponent<GrimoireBookIcon>()
               .Setup(iconImg, Load("grimorio_aberto"), Load("grimorio_fechado"));
-
-            // Rótulo
-            var labelGO = new GameObject("Label", typeof(RectTransform));
-            labelGO.transform.SetParent(go.transform, false);
-            var labelRT = (RectTransform)labelGO.transform;
-            labelRT.anchorMin = new Vector2(0f, 0f);
-            labelRT.anchorMax = new Vector2(1f, 1f);
-            labelRT.offsetMin = new Vector2(80f, 6f);
-            labelRT.offsetMax = new Vector2(-12f, -6f);
-
-            var label = labelGO.AddComponent<TextMeshProUGUI>();
-            label.text = "ABRIR GRIMORIO";
-            label.fontSize = 15f;              // o TextStyler ainda aplica +20%
-            label.fontStyle = FontStyles.Bold;
-            label.alignment = TextAlignmentOptions.Center;
-            label.textWrappingMode = TextWrappingModes.NoWrap;
-            label.color = Color.white;
-            label.raycastTarget = false;
         }
 
         /// <summary>
@@ -623,7 +739,6 @@ namespace QueryQuest.UI
 
             var go = new GameObject("BtnEndTurn", typeof(RectTransform));
             go.transform.SetParent(bar, false);
-            go.transform.SetAsLastSibling();   // o layout coloca depois de "Avançar"
 
             var img = go.AddComponent<Image>();
 
@@ -633,18 +748,13 @@ namespace QueryQuest.UI
 
             var labelGO = new GameObject("Label", typeof(RectTransform));
             labelGO.transform.SetParent(go.transform, false);
-            Stretch(labelGO.transform, 8f, 4f, 8f, 4f);
 
             var label = labelGO.AddComponent<TextMeshProUGUI>();
             label.text = "ENCERRAR TURNO";
-            label.fontSize = 13f;              // o TextStyler ainda aplica +20%
-            label.fontStyle = FontStyles.Bold;
-            label.alignment = TextAlignmentOptions.Center;
-            label.textWrappingMode = TextWrappingModes.NoWrap;
-            label.raycastTarget = false;
 
-            // Mesma placa de madeira e tamanho dos outros botões da barra
-            StylePlaqueButton(go.transform, new Vector2(175f, 57f));
+            // Vai na caixa larga da direita, com a placa de cantos ogivais —
+            // que é justamente o formato daquela caixa.
+            MontarBotaoDaBarra(bar, go.transform, SlotTurno, "hud_botao_turno", PlacaTurnoAspect);
 
             go.AddComponent<EndTurnButton>().Setup(btn);
         }

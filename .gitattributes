@@ -1,0 +1,53 @@
+# O repositório está com core.autocrlf=true. Sem estas regras, o git aplica
+# conversão de fim de linha em arquivos que NÃO são texto, e os bytes que voltam
+# do repositório deixam de ser os que foram gravados — foi o que aconteceu com
+# hud_baixo.png, que aparecia eternamente como modificado no git status.
+
+# Padrão: só arquivos detectados como texto são normalizados (LF no repositório)
+* text=auto
+
+# ── Código e dados de texto ──────────────────────────────────────────────────
+*.cs        text diff=csharp
+*.json      text
+*.md        text
+*.txt       text
+*.xml       text
+*.shader    text
+*.cginc     text
+*.hlsl      text
+*.uss       text
+*.uxml      text
+
+# ── Arquivos do Unity (YAML, mas nunca devem ser mesclados a mão) ────────────
+*.unity     text merge=unity eol=lf
+*.prefab    text merge=unity eol=lf
+*.asset     text merge=unity eol=lf
+*.meta      text merge=unity eol=lf
+*.mat       text merge=unity eol=lf
+*.controller text merge=unity eol=lf
+*.anim      text merge=unity eol=lf
+*.physicMaterial2D text merge=unity eol=lf
+
+# ── Binários: NUNCA converter ────────────────────────────────────────────────
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.psd       binary
+*.tga       binary
+*.bmp       binary
+*.ico       binary
+*.ttf       binary
+*.otf       binary
+*.wav       binary
+*.mp3       binary
+*.ogg       binary
+*.fbx       binary
+*.blend     binary
+*.db        binary
+*.dll       binary
+*.so        binary
+*.dylib     binary
+*.pdf       binary
+*.zip       binary
+*.unitypackage binary

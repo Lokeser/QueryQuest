@@ -67,8 +67,43 @@ namespace QueryQuest.UI
         // UNITY
         // ─────────────────────────────────────────────────────────────────────
 
+        public static GrimoireUI Instance { get; private set; }
+
+        /// <summary>
+        /// Abre o grimório mesmo fora do turno do jogador. O CombatManager só
+        /// autoriza a abertura em PLAYER_TURN; na cena de absorção do fragmento o
+        /// combate já acabou (IDLE), e ali o aluno PRECISA poder consultar as
+        /// tabelas para montar o JOIN.
+        /// </summary>
+        public static void AbrirLivre()
+        {
+            var combate = CombatManager.Instance;
+            if (combate != null && combate.CurrentState == CombatState.PLAYER_TURN)
+            {
+                combate.OpenGrimoire();     // caminho normal: o estado acompanha
+                return;
+            }
+
+            if (Instance == null) return;
+            Instance.Open();
+            Instance.transform.SetAsLastSibling();   // à frente da tela de absorção
+        }
+
+        /// <summary>Fecha, tendo sido aberto pelo combate ou fora dele.</summary>
+        public static void FecharLivre()
+        {
+            var combate = CombatManager.Instance;
+            if (combate != null && combate.CurrentState == CombatState.GRIMOIRE_OPEN)
+            {
+                combate.CloseGrimoire();
+                return;
+            }
+            if (Instance != null) Instance.Close();
+        }
+
         private void Awake()
         {
+            Instance = this;
             _canvasGroup = GetComponent<CanvasGroup>();
             if (_canvasGroup == null) _canvasGroup = gameObject.AddComponent<CanvasGroup>();
 

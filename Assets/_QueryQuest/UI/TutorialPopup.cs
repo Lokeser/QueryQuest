@@ -24,58 +24,31 @@ namespace QueryQuest.UI
             public string Corpo;
         }
 
-        // A explicação. Curta por página, para o jogador ler sem cansar.
+        // Só o essencial para dar o primeiro turno. O resto o jogador descobre
+        // jogando, ou consulta na aba TABELAS do grimório — repetir tudo aqui
+        // vira parede de texto que ninguém lê.
         private static readonly Pagina[] Paginas =
         {
             new Pagina
             {
                 Titulo = "VOCE NAO ESCOLHE MAGIAS. VOCE AS CONSULTA.",
-                Corpo  = "Seu grimório é um banco de dados. Para atacar, escreva uma consulta SQL de verdade na aba <b>Query</b> — a magia que a consulta devolver é a que você lança.\n\n" +
+                Corpo  = "Seu grimório é um banco de dados. Para atacar, escreva uma consulta SQL na aba <b>Query</b>: a magia que ela devolver é a que você lança.\n\n" +
                          "<color=#6B3410><b>SELECT * FROM Magias WHERE Elemento = 'Fogo'</b></color>\n\n" +
-                         "Se a consulta devolver várias magias, você lança a primeira da lista.",
+                         "Quanto mais específica a consulta, <b>mais barata</b> fica a magia. WHERE, AND, ORDER BY e LIMIT descontam mana.",
             },
             new Pagina
             {
-                Titulo = "CONSULTA PRECISA, MAGIA BARATA",
-                Corpo  = "O custo de mana <b>cai</b> quanto mais específica for a sua consulta. Filtrar com <b>WHERE</b>, <b>AND</b>, <b>ORDER BY</b> e <b>LIMIT</b> deixa o feitiço mais barato.\n\n" +
-                         "Um <color=#6B3410><b>SELECT *</b></color> sem filtro funciona, mas é o jeito mais caro de lutar: você paga por toda a lista para lançar uma magia só.",
-            },
-            new Pagina
-            {
-                Titulo = "A POSICAO DECIDE SE VOCE ACERTA",
-                Corpo  = "A arena tem <b>6 slots</b>. Cada magia tem um alcance a partir de onde você está:\n\n" +
-                         "<b>CURTO</b> — atinge o slot seguinte\n" +
-                         "<b>MEDIO</b> — os dois seguintes\n" +
-                         "<b>LONGO</b> — os três seguintes\n\n" +
-                         "Se o golem não estiver dentro dessa área, a magia passa longe. E cada golem sofre <b>+50% de dano</b> na distância em que é vulnerável.",
-            },
-            new Pagina
-            {
-                Titulo = "UM TURNO = UMA MAGIA + UM MOVIMENTO",
-                Corpo  = "Por turno você pode lançar <b>uma</b> magia e fazer <b>um</b> movimento, na ordem que preferir.\n\n" +
-                         "O turno não passa sozinho: quando terminar, clique em <b>ENCERRAR TURNO</b>. Use isso a seu favor — ataque primeiro e depois recue, ou aproxime-se e só então lance.",
-            },
-            new Pagina
-            {
-                Titulo = "A LUA SABE DE ALGUMA COISA",
-                Corpo  = "No começo de cada luta a lua solta uma dica sobre a fraqueza do golem. <b>Clique nela</b> para ouvir as outras.\n\n" +
-                         "Para confirmar, use a magia <b>Analise</b> consultando a tabela de inimigos:\n\n" +
+                Titulo = "DESCUBRA A FRAQUEZA, ESCOLHA A DISTANCIA",
+                Corpo  = "Cada golem tem um elemento que o fere e uma distância em que sofre dano extra. Nada disso aparece na tela: está na tabela <b>Inimigos</b>.\n\n" +
                          "<color=#6B3410><b>SELECT FraquezaElemento FROM Inimigos</b></color>\n\n" +
-                         "Ela cobra mana <b>por coluna</b> consultada — pergunte só o que importa.",
+                         "A arena tem <b>6 slots</b>. Por turno você lança <b>uma</b> magia e faz <b>um</b> movimento; o turno só passa quando você clicar em <b>ENCERRAR TURNO</b>.",
             },
             new Pagina
             {
-                Titulo = "DERROTOU O GOLEM? USE JOIN.",
-                Corpo  = "Cada golem derrotado deixa cair <b>fragmentos</b> da própria essência. Para absorver, você cruza duas tabelas com <b>JOIN</b>:\n\n" +
-                         "<color=#6B3410><b>FROM Fragmentos f JOIN Inimigos i ON f.InimigoID = i.Id</b></color>\n\n" +
-                         "Ninguém escreve por você: na tela de absorção você <b>digita a consulta</b>, e ela roda de verdade no banco. Se travar, o botão <b>DICA</b> ajuda em três degraus.\n\n" +
-                         "Absorver um fragmento ensina a você a <b>magia de nível 2</b> daquele elemento. É assim que sua build cresce ao longo dos 5 andares.",
-            },
-            new Pagina
-            {
-                Titulo = "PRONTO. O RESTO E COM VOCE.",
-                Corpo  = "Cinco andares, um golem em cada. Vença todos e o <b>Modo Infinito</b> abre: tudo recomeça mais forte, com a build que você montou.\n\n" +
-                         "<b>Quer reler isto?</b> É só clicar em <b>AJUDA</b>, no canto superior do grimório — está sempre lá.",
+                Titulo = "PERDIDO? ABRA O GRIMORIO.",
+                Corpo  = "A aba <b>TABELAS</b> explica cada coluna do banco e marca as que decidem a luta. A lua também solta dicas — clique nela.\n\n" +
+                         "Ao derrotar um golem você absorve o fragmento dele escrevendo um <b>JOIN</b>, e ganha a magia de nível 2 daquele elemento.\n\n" +
+                         "<b>Para reler isto:</b> botão <b>AJUDA</b>, no topo do grimório.",
             },
         };
 
@@ -112,14 +85,23 @@ namespace QueryQuest.UI
             if (moldura != null) UiFrame.Apply(fundo, moldura);
             else fundo.color = new Color(0.96f, 0.90f, 0.74f);
 
-            _titulo = Texto(raiz, "Titulo", "", 26f, Realce, 0.08f, 0.09f, 0.92f, 0.22f);
+            // Os tamanhos são os de ANTES do TextStyler, que ainda aplica +20%.
+            // Com auto-size a página mais longa encolhe até caber em vez de
+            // transbordar a moldura.
+            _titulo = Texto(raiz, "Titulo", "", 19f, Realce, 0.08f, 0.09f, 0.92f, 0.21f);
+            _titulo.enableAutoSizing = true;
+            _titulo.fontSizeMin = 11f;
+            _titulo.fontSizeMax = 19f;
 
-            _corpo = Texto(raiz, "Corpo", "", 19f, Ink, 0.09f, 0.24f, 0.91f, 0.76f);
+            _corpo = Texto(raiz, "Corpo", "", 14f, Ink, 0.09f, 0.24f, 0.91f, 0.75f);
             _corpo.alignment = TextAlignmentOptions.TopLeft;
-            _corpo.lineSpacing = 6f;
+            _corpo.lineSpacing = 4f;
+            _corpo.enableAutoSizing = true;
+            _corpo.fontSizeMin = 9f;
+            _corpo.fontSizeMax = 14f;
 
-            _contador = Texto(raiz, "Contador", "", 16f, new Color(0.45f, 0.34f, 0.20f),
-                              0.40f, 0.80f, 0.60f, 0.88f);
+            _contador = Texto(raiz, "Contador", "", 12f, new Color(0.45f, 0.34f, 0.20f),
+                              0.40f, 0.79f, 0.60f, 0.87f);
 
             _btnAnterior = Botao(raiz, "ANTERIOR", 0.08f, 0.80f, 0.30f, 0.91f, () => Ir(-1));
             _btnProximo  = Botao(raiz, "PROXIMO",  0.70f, 0.80f, 0.92f, 0.91f, () => Ir(+1));
@@ -215,10 +197,13 @@ namespace QueryQuest.UI
             cores.disabledColor = new Color(0.62f, 0.58f, 0.52f);
             btn.colors = cores;
 
-            var label = Texto(go.transform, "Label", rotulo, 17f, Color.white, 0f, 0f, 1f, 1f);
+            var label = Texto(go.transform, "Label", rotulo, 13f, Color.white, 0f, 0f, 1f, 1f);
             label.rectTransform.offsetMin = new Vector2(8f, 4f);
             label.rectTransform.offsetMax = new Vector2(-8f, -4f);
             label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 8f;
+            label.fontSizeMax = 13f;
             return btn;
         }
     }

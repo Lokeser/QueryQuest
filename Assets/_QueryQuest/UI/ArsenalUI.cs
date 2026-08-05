@@ -32,6 +32,10 @@ namespace QueryQuest.UI
 
         public void Refresh()
         {
+            // O painel virou a aba TABELAS (ver TabelasUI): o conteúdo original
+            // foi removido e não há mais onde escrever as linhas.
+            if (!enabled || tableContent == null) return;
+
             ClearRows();
 
             if (DatabaseManager.Instance?.DB == null) return;

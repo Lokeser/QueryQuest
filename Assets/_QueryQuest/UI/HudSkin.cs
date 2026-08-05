@@ -140,6 +140,8 @@ namespace QueryQuest.UI
             BuildEndTurnButton();
             BuildGrimoireButton();
             BuildGrimoireCloseButton();
+            SkinGrimoire();
+            BuildColunasDoBanco();
             BuildFragmentosPanel();
             BuildTutorial();
             ApplyTextStyle();
@@ -644,7 +646,7 @@ namespace QueryQuest.UI
 
             var btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
-            btn.onClick.AddListener(() => CombatManager.Instance?.OpenGrimoire());
+            btn.onClick.AddListener(GrimoireUI.AbrirLivre);
 
             // O tint do Button pintaria a imagem invisível, não o livro
             var cb = btn.colors;
@@ -698,13 +700,11 @@ namespace QueryQuest.UI
                 SetRect(go.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
                         new Vector2(-62f, -10f), new Vector2(104f, 46f));
 
-                var img = go.AddComponent<Image>();
-                var frame = Load("hud_botao");
-                if (frame != null) UiFrame.Apply(img, frame, 0.5f);
+                go.AddComponent<Image>();
 
                 var btn = go.AddComponent<Button>();
-                btn.targetGraphic = img;
                 btn.onClick.AddListener(popup.Abrir);
+                GrimoireSkin.VestirBotao(btn);   // dentro do grimório: paleta do grimório
 
                 var labelGO = new GameObject("Label", typeof(RectTransform));
                 labelGO.transform.SetParent(go.transform, false);
@@ -759,6 +759,113 @@ namespace QueryQuest.UI
             go.AddComponent<EndTurnButton>().Setup(btn);
         }
 
+        /// <summary>
+        /// Veste o grimório na paleta da HUD, com superfícies geradas em runtime,
+        /// e troca as abas Arsenal e Docs por uma única aba TABELAS.
+        /// As artes da HUD NÃO servem aqui: são banners largos, com ornamento nas
+        /// pontas, que deformam num painel alto e estreito.
+        /// </summary>
+        private void SkinGrimoire()
+        {
+            var painel = Find("GrimoirePanel");
+            if (painel == null) return;
+
+            GrimoireSkin.Aplicar(painel);
+
+            var barra = Child(painel, "TabBar");
+            var area  = Child(painel, "ContentArea");
+            if (barra == null || area == null) return;
+
+            var abaQuery   = Child(barra, "TabQuery");
+            var abaMagias  = Child(barra, "TabMagias");
+            var abaArsenal = Child(barra, "TabArsenal");
+            var abaDocs    = Child(barra, "TabDocs");
+
+            var pQuery   = Child(area, "PanelQuery");
+            var pMagias  = Child(area, "PanelMagias");
+            var pArsenal = Child(area, "PanelArsenal");
+            var pDocs    = Child(area, "PanelDocs");
+
+            // Docs sai de cena: o conteúdo dela foi absorvido pela aba TABELAS
+            if (abaDocs != null) abaDocs.gameObject.SetActive(false);
+            if (pDocs   != null) pDocs.gameObject.SetActive(false);
+
+            // Arsenal vira TABELAS
+            if (abaArsenal != null)
+                foreach (var tmp in abaArsenal.GetComponentsInChildren<TextMeshProUGUI>(true))
+                    tmp.text = "TABELAS";
+
+            if (pArsenal != null) TabelasUI.Instalar(pArsenal);
+
+            GrimoireSkin.RegistrarAba(abaQuery?.GetComponent<Button>(),   pQuery?.gameObject);
+            GrimoireSkin.RegistrarAba(abaMagias?.GetComponent<Button>(),  pMagias?.gameObject);
+            GrimoireSkin.RegistrarAba(abaArsenal?.GetComponent<Button>(), pArsenal?.gameObject);
+            GrimoireSkin.RepintarAbas();
+        }
+
+        /// <summary>
+        /// Os nomes das colunas do banco ao lado de cada barra de vida: Magias
+        /// junto do jogador, Inimigos junto do golem. É a consulta que o aluno
+        /// vai escrever, então o vocabulário fica à vista o tempo todo.
+        /// </summary>
+        private void BuildColunasDoBanco()
+        {
+            var statusBars = Find("StatusBars");
+            if (statusBars == null || statusBars.parent == null) return;
+            if (Child(statusBars.parent, "ColunasMagias") != null) return;
+
+            var pai = statusBars.parent;
+
+            // À direita do painel do jogador (que fica no canto superior esquerdo)
+            var magias = CriarLegendaColunas(pai, "ColunasMagias", "Magias",
+                new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(PlayerPanelSize.x + 26f, -20f), TextAlignmentOptions.TopLeft);
+
+            // À esquerda do painel do inimigo (canto superior direito)
+            var inimigos = CriarLegendaColunas(pai, "ColunasInimigos", "Inimigos",
+                new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(-(EnemyPanelSize.x + 26f), -20f), TextAlignmentOptions.TopRight);
+
+            if (inimigos != null) inimigos.rectTransform.pivot = new Vector2(1f, 1f);
+        }
+
+        private TextMeshProUGUI CriarLegendaColunas(Transform pai, string nome, string tabela,
+                                                    Vector2 ancora, Vector2 pivo, Vector2 pos,
+                                                    TextAlignmentOptions alinhamento)
+        {
+            var go = new GameObject(nome, typeof(RectTransform));
+            go.transform.SetParent(pai, false);
+            SetRect(go.transform, ancora, ancora, pivo, pos, new Vector2(300f, 74f));
+
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.text = SchemaGuia.LinhaDeColunas(tabela);
+            tmp.fontSize = 12f;
+            tmp.color = new Color(0.94f, 0.90f, 0.80f);
+            tmp.alignment = alinhamento;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
+            tmp.raycastTarget = false;
+            tmp.lineSpacing = 4f;
+
+            // Contorno escuro: o texto fica sobre o cenário, que muda a cada andar
+            tmp.fontMaterial.EnableKeyword("OUTLINE_ON");
+            tmp.outlineColor = new Color32(20, 12, 4, 255);
+            tmp.outlineWidth = 0.22f;
+
+            // O banco pode ainda não estar carregado quando a HUD é montada
+            if (string.IsNullOrEmpty(tmp.text)) StartCoroutine(PreencherQuandoOBancoAbrir(tmp, tabela));
+            return tmp;
+        }
+
+        private IEnumerator PreencherQuandoOBancoAbrir(TextMeshProUGUI tmp, string tabela)
+        {
+            float limite = Time.realtimeSinceStartup + 20f;
+            while (tmp != null && string.IsNullOrEmpty(tmp.text) && Time.realtimeSinceStartup < limite)
+            {
+                yield return new WaitForSeconds(0.25f);
+                if (tmp != null) tmp.text = SchemaGuia.LinhaDeColunas(tabela);
+            }
+        }
+
         /// <summary>X no canto do grimório — fecha a tela.</summary>
         private void BuildGrimoireCloseButton()
         {
@@ -772,13 +879,11 @@ namespace QueryQuest.UI
             SetRect(go.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
                     new Vector2(-10f, -10f), new Vector2(46f, 46f));
 
-            var img = go.AddComponent<Image>();
-            var frame = Load("hud_botao");
-            if (frame != null) UiFrame.Apply(img, frame, 0.5f);
+            go.AddComponent<Image>();
 
             var btn = go.AddComponent<Button>();
-            btn.targetGraphic = img;
-            btn.onClick.AddListener(() => CombatManager.Instance?.CloseGrimoire());
+            btn.onClick.AddListener(GrimoireUI.FecharLivre);
+            GrimoireSkin.VestirBotao(btn);   // dentro do grimório: paleta do grimório
 
             var labelGO = new GameObject("X", typeof(RectTransform));
             labelGO.transform.SetParent(go.transform, false);

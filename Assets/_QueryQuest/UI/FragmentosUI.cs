@@ -105,8 +105,12 @@ namespace QueryQuest.UI
             _resultadoTxt.alignment = TextAlignmentOptions.TopLeft;
 
             // ── Botões ──
-            Botao(raiz, "CONTINUAR", 0.06f, 0.87f, 0.30f, 0.95f, Continuar);
-            Botao(raiz, "DICA",      0.38f, 0.87f, 0.56f, 0.95f, ProximaDica);
+            // O grimório fica acessível aqui de propósito: é onde estão as
+            // tabelas, e daqui o jogador também pode escrever o JOIN pelo
+            // terminal de consulta, se preferir.
+            Botao(raiz, "CONTINUAR", 0.06f, 0.87f, 0.26f, 0.95f, Continuar);
+            Botao(raiz, "GRIMÓRIO",  0.28f, 0.87f, 0.46f, 0.95f, AbrirGrimorio);
+            Botao(raiz, "DICA",      0.48f, 0.87f, 0.60f, 0.95f, ProximaDica);
             Botao(raiz, $"ABSORVER ({CustoMana} mana)", 0.62f, 0.87f, 0.94f, 0.95f, Absorver);
         }
 
@@ -139,6 +143,18 @@ namespace QueryQuest.UI
         {
             Fechar();
             FragmentDropSystem.Instance?.FinishPhase();
+        }
+
+        /// <summary>
+        /// Abre o grimório por cima desta tela. O combate já acabou (estado IDLE),
+        /// então precisa ser a abertura livre — o CombatManager recusaria.
+        /// </summary>
+        private void AbrirGrimorio()
+        {
+            GrimoireUI.AbrirLivre();
+            if (_selecionado != null)
+                _resultadoTxt.text = "Consulte a aba <b>TABELAS</b> no grimório. " +
+                                     $"O fragmento escolhido é o de FragmentoID = <b>{_selecionado.FragmentoID}</b>.";
         }
 
         private void OnEnable()

@@ -690,15 +690,16 @@ namespace QueryQuest.UI
             var popup = TutorialPopup.Create(canvas);
 
             var panel = Find("GrimoirePanel");
-            if (panel != null && Child(panel, "BtnAjuda") == null)
+            var barraTopo = panel != null ? (Child(panel, "Header") ?? panel) : null;
+            if (barraTopo != null && Child(barraTopo, "BtnAjuda") == null)
             {
                 var go = new GameObject("BtnAjuda", typeof(RectTransform));
-                go.transform.SetParent(panel, false);
+                go.transform.SetParent(barraTopo, false);
                 go.transform.SetAsLastSibling();
 
-                // Logo à esquerda do X que fecha o grimório
-                SetRect(go.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-                        new Vector2(-62f, -10f), new Vector2(104f, 46f));
+                // No cabeçalho, logo à esquerda do X
+                SetRect(go.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                        new Vector2(-56f, 0f), new Vector2(84f, 32f));
 
                 go.AddComponent<Image>();
 
@@ -771,6 +772,7 @@ namespace QueryQuest.UI
             if (painel == null) return;
 
             GrimoireSkin.Aplicar(painel);
+            GrimoireAcimaDeTudo(painel);
 
             var barra = Child(painel, "TabBar");
             var area  = Child(painel, "ContentArea");
@@ -796,11 +798,38 @@ namespace QueryQuest.UI
                     tmp.text = "TABELAS";
 
             if (pArsenal != null) TabelasUI.Instalar(pArsenal);
+            if (pMagias  != null) MagiasUI.Instalar(pMagias);
 
             GrimoireSkin.RegistrarAba(abaQuery?.GetComponent<Button>(),   pQuery?.gameObject);
             GrimoireSkin.RegistrarAba(abaMagias?.GetComponent<Button>(),  pMagias?.gameObject);
             GrimoireSkin.RegistrarAba(abaArsenal?.GetComponent<Button>(), pArsenal?.gameObject);
             GrimoireSkin.RepintarAbas();
+        }
+
+        /// <summary>
+        /// O grimório passa a desenhar por cima de TODA a HUD e vira arrastável
+        /// pelo cabeçalho.
+        ///
+        /// Ordem de irmãos não resolveria: o painel do inimigo, os slots e a barra
+        /// de baixo são criados/reposicionados em momentos diferentes. Um Canvas
+        /// aninhado com overrideSorting garante a camada de cima de uma vez —
+        /// e ele precisa do próprio GraphicRaycaster para continuar clicável.
+        /// </summary>
+        private void GrimoireAcimaDeTudo(Transform painel)
+        {
+            var canvas = painel.GetComponent<Canvas>();
+            if (canvas == null) canvas = painel.gameObject.AddComponent<Canvas>();
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 500;
+
+            if (painel.GetComponent<GraphicRaycaster>() == null)
+                painel.gameObject.AddComponent<GraphicRaycaster>();
+
+            var arrasto = painel.GetComponent<DraggablePanel>();
+            if (arrasto == null) arrasto = painel.gameObject.AddComponent<DraggablePanel>();
+            // A alça é só o cabeçalho: arrastar pelo painel inteiro brigaria com a
+            // rolagem das abas e com o campo de consulta.
+            arrasto.Configurar(Child(painel, "Header") as RectTransform);
         }
 
         /// <summary>
@@ -870,14 +899,19 @@ namespace QueryQuest.UI
         private void BuildGrimoireCloseButton()
         {
             var panel = Find("GrimoirePanel");
-            if (panel == null || Child(panel, "BtnCloseGrimoire") != null) return;
+            if (panel == null) return;
+
+            // Moram no cabeçalho, ao lado do título — antes ficavam no canto do
+            // painel e cobriam a aba TABELAS.
+            var barraTopo = Child(panel, "Header") ?? panel;
+            if (Child(barraTopo, "BtnCloseGrimoire") != null) return;
 
             var go = new GameObject("BtnCloseGrimoire", typeof(RectTransform));
-            go.transform.SetParent(panel, false);
-            go.transform.SetAsLastSibling();   // por cima do conteúdo do grimório
+            go.transform.SetParent(barraTopo, false);
+            go.transform.SetAsLastSibling();
 
-            SetRect(go.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-                    new Vector2(-10f, -10f), new Vector2(46f, 46f));
+            SetRect(go.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                    new Vector2(-12f, 0f), new Vector2(38f, 32f));
 
             go.AddComponent<Image>();
 

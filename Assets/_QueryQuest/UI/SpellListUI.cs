@@ -50,6 +50,10 @@ namespace QueryQuest.UI
         /// <summary>Recarrega a lista do banco e reconstrói as linhas.</summary>
         public void Refresh()
         {
+            // O painel foi reconstruído por MagiasUI: o conteúdo original saiu e
+            // não há mais onde instanciar as linhas.
+            if (!enabled || spellContent == null) return;
+
             ClearRows();
 
             if (DatabaseManager.Instance?.DB == null) return;

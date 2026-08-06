@@ -41,6 +41,24 @@ namespace QueryQuest.UI
             }
         }
 
+        /// <summary>
+        /// Define a alça em runtime. Necessário porque o Awake já rodou quando o
+        /// componente é adicionado por código — sem isto, o painel inteiro viraria
+        /// área de arrasto e brigaria com a rolagem e o campo de texto.
+        /// </summary>
+        public void Configurar(RectTransform alca, bool limitarNaTela = true)
+        {
+            dragHandle = alca;
+            clampToScreen = limitarNaTela;
+            if (_panel == null) _panel = GetComponent<RectTransform>();
+            if (_canvas == null) _canvas = GetComponentInParent<Canvas>();
+            if (alca == null) return;
+
+            var forwarder = alca.GetComponent<DragHandleForwarder>();
+            if (forwarder == null) forwarder = alca.gameObject.AddComponent<DragHandleForwarder>();
+            forwarder.Init(this);
+        }
+
         public void OnBeginDrag(PointerEventData eventData)
         {
             RectTransformUtility.ScreenPointToLocalPointInRectangle(

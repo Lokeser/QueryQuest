@@ -121,6 +121,10 @@ namespace QueryQuest.UI
                    "SELECT f.Nome, i.Nome FROM Fragmentos f JOIN Inimigos i ON f.InimigoID = i.Id");
 
             Rodape();
+
+            // Sem isto a altura do conteúdo só é recalculada no frame seguinte,
+            // e a rolagem nasce travada.
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_conteudo);
         }
 
         /// <summary>A caixa que abre a aba: só o que decide a luta agora.</summary>
@@ -203,7 +207,10 @@ namespace QueryQuest.UI
             layout.childControlHeight = true;
             layout.childControlWidth = true;
             layout.childForceExpandHeight = false;
-            go.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            // Sem ContentSizeFitter aqui: o cartão está DENTRO de um
+            // VerticalLayoutGroup que já controla a altura dele. Os dois juntos
+            // brigam pelo mesmo valor, e o resultado é a altura do conteúdo sair
+            // errada — foi o que travava a rolagem no meio da tabela Magias.
 
             var txtGO = new GameObject("Texto", typeof(RectTransform));
             txtGO.transform.SetParent(go.transform, false);

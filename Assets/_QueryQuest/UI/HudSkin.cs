@@ -31,8 +31,46 @@ namespace QueryQuest.UI
         /// <summary>Fundo das telas cheias, num marrom próximo ao da HUD.</summary>
         private static readonly Color ScreenTint = new Color(0.10f, 0.06f, 0.03f, 0.90f);
 
+        // ─────────────────────────────────────────────────────────────────────
+        // A BARRA DE BAIXO (hud_baixo)
+        //
+        // A arte já vem com o arco central e as caixas dos botões DESENHADAS,
+        // então ela nunca é esticada: entra na proporção original e cada botão
+        // é colocado por fração da imagem, na caixa que lhe pertence.
+        // Números medidos nos pixels da arte (1522x607, já sem o fundo):
+        //   (x0, x1, yTopo0, yTopo1) — y contado a partir do TOPO da imagem.
+        // ─────────────────────────────────────────────────────────────────────
+
+        private const float ArteBaixoW = 1522f;
+        private const float ArteBaixoH = 607f;
+
+        private static readonly Vector4 SlotVoltar   = new Vector4(0.1886f, 0.3377f, 0.6755f, 0.8929f);
+        private static readonly Vector4 SlotManter   = new Vector4(0.3568f, 0.5046f, 0.6771f, 0.9012f);
+        private static readonly Vector4 SlotAvancar  = new Vector4(0.5230f, 0.6787f, 0.6738f, 0.8979f);
+        private static readonly Vector4 SlotTurno    = new Vector4(0.7359f, 0.9501f, 0.6705f, 0.9012f);
+        private static readonly Vector4 SlotGrimorio = new Vector4(0.4238f, 0.5644f, 0.1779f, 0.4975f);
+
+        /// <summary>Proporção das placas recortadas, para encaixar sem deformar.</summary>
+        private const float PlacaMovAspect   = 1452f / 662f;    // ~2.193
+        private const float PlacaTurnoAspect = 1493f / 592f;    // ~2.522
+
+        /// <summary>Tamanho que a barra recebeu nesta resolução.</summary>
+        private Vector2 _barSize;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()
+        {
+            // ATENÇÃO: este atributo roda UMA VEZ por execução, não a cada cena.
+            // Como o jogo agora começa pelo menu, é preciso recriar o skin a cada
+            // cena carregada — senão a HUD do combate nunca seria vestida.
+            Criar();
+            SceneManager.sceneLoaded -= AoCarregarCena;
+            SceneManager.sceneLoaded += AoCarregarCena;
+        }
+
+        private static void AoCarregarCena(Scene cena, LoadSceneMode modo) => Criar();
+
+        private static void Criar()
         {
             var go = new GameObject("~HudSkin");
             go.AddComponent<HudSkin>();
@@ -74,9 +112,12 @@ namespace QueryQuest.UI
 
             SkinReplace("CombatLogPanel",   "hud_registro");
 
-            // O livro e os botões são posicionados por fração da arte, então a
-            // barra também precisa esticar por igual (sem 9-slice).
-            SkinReplace("MovementBar", "hud_baixo", middleFraction: 0.30f);
+            // A barra NUNCA estica: o rect dela já tem a proporção exata da arte
+            // (ver LayoutBottomBar), então a imagem entra inteira e o arco central
+            // e as caixas dos botões continuam com o desenho original.
+            SkinReplace("MovementBar", "hud_baixo", simple: true);
+            var barImg = Find("MovementBar")?.GetComponent<Image>();
+            if (barImg != null) barImg.preserveAspect = true;
 
             // O log tem texto claro (feito para fundo preto): sobre o pergaminho
             // ele precisa virar tinta escura.
@@ -89,26 +130,21 @@ namespace QueryQuest.UI
             SkinScreen("RewardScreen", new Vector2(1060f, 620f));
             SkinScreen("EndScreen",    new Vector2(820f, 520f));
 
-            StyleMovementButtons();
+            LayoutBotoesDaBarra();
             StylePlaqueButton(Find("RestartButton"), null);   // mantém o rect da cena
 
             // Paletas legíveis sobre as novas artes
             var hud = FindAnyObjectByType<ArenaHUD>();
             if (hud != null) hud.ApplyParchmentSkin();
 
+            BuildEndTurnButton();
             BuildGrimoireButton();
             BuildGrimoireCloseButton();
+            SkinGrimoire();
+            BuildColunasDoBanco();
             BuildFragmentosPanel();
+            BuildTutorial();
             ApplyTextStyle();
-        }
-
-        /// <summary>Placa de madeira, 30% maiores e rótulo branco.</summary>
-        private void StyleMovementButtons()
-        {
-            var size = new Vector2(175f, 57f);
-            StylePlaqueButton(Find("BtnBack"),   size);
-            StylePlaqueButton(Find("BtnStay"),   size);
-            StylePlaqueButton(Find("BtnFoward"), size);
         }
 
         /// <summary>Botão com placa de madeira e rótulo branco. size null = mantém o da cena.</summary>
@@ -389,7 +425,7 @@ namespace QueryQuest.UI
                 }
 
                 SkinToken(Child(slot, "PlayerToken"), "icone_jogador");
-                SkinToken(Child(slot, "EnemyToken"),  "icone_inimigo");
+                SkinToken(Child(slot, "EnemyToken"),  "icone_inimigo", 0.6f);   // 40% menor
             }
 
             var arena = FindAnyObjectByType<ArenaUI>();
@@ -403,8 +439,12 @@ namespace QueryQuest.UI
             { 0.5079f, 0.6217f }, { 0.6362f, 0.7493f }, { 0.7639f, 0.8763f },
         };
 
-        /// <summary>Troca o quadradinho colorido pelo ícone (chapéu / cabeça de golem).</summary>
-        private void SkinToken(Transform token, string spriteName)
+        /// <summary>
+        /// Troca o quadradinho colorido pelo ícone (chapéu / cabeça de golem).
+        /// A escala vai no localScale porque o ArenaUI reescreve âncoras e offsets
+        /// a cada Refresh — o localScale ele não toca, então o ajuste sobrevive.
+        /// </summary>
+        private void SkinToken(Transform token, string spriteName, float escala = 1f)
         {
             if (token == null) return;
 
@@ -416,6 +456,8 @@ namespace QueryQuest.UI
                 img.color = Color.white;
                 img.preserveAspect = true;
             }
+
+            token.localScale = Vector3.one * escala;
 
             // Centralizado na caixa, acima da faixa do número
             if (token is RectTransform rt)
@@ -432,27 +474,139 @@ namespace QueryQuest.UI
         }
 
         /// <summary>
-        /// Barra inferior ocupando a largura da tela. A arte nova é um pergaminho
-        /// simples, então o 9-slice dá conta de esticar sem perder as pontas.
+        /// Barra inferior: console central apoiado na base, SEM esticar. A arte
+        /// manda na proporção; o tamanho sai do menor entre 62% da largura e 34%
+        /// da altura da tela. Assim ela fica generosa num monitor comum, não
+        /// engole a arena num ultrawide e não estoura a altura num 4:3.
         /// </summary>
         private void LayoutBottomBar()
         {
             var bar = Find("MovementBar");
             if (bar == null) return;
 
-            SetRect(bar, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0.5f, 0f),
-                    Vector2.zero, new Vector2(0f, 200f));
+            _barSize = TamanhoDaBarra(TamanhoDoCanvas(bar));
 
-            // Ordem original: Voltar | Manter | Avançar, centralizados
+            SetRect(bar, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                    Vector2.zero, _barSize);
+
+            // Os botões não são mais distribuídos por layout: cada um vai para a
+            // caixa que já está desenhada no banner (ver LayoutBotoesDaBarra).
             var group = bar.GetComponent<HorizontalLayoutGroup>();
-            if (group != null)
+            if (group != null) group.enabled = false;
+        }
+
+        /// <summary>
+        /// Tamanho da barra para uma tela qualquer, SEMPRE na proporção da arte.
+        /// Cabe em 62% da largura e 34% da altura — quem apertar primeiro manda.
+        /// </summary>
+        public static Vector2 TamanhoDaBarra(Vector2 tela)
+        {
+            float escala = Mathf.Min(tela.x * 0.62f / ArteBaixoW,
+                                     tela.y * 0.34f / ArteBaixoH);
+            return new Vector2(ArteBaixoW * escala, ArteBaixoH * escala);
+        }
+
+        private static Vector2 TamanhoDoCanvas(Transform dentroDe)
+        {
+            var canvas = dentroDe != null ? dentroDe.GetComponentInParent<Canvas>() : null;
+            var rt = canvas != null ? canvas.rootCanvas.transform as RectTransform : null;
+            return rt != null ? rt.rect.size : new Vector2(1920f, 1080f);
+        }
+
+        /// <summary>
+        /// Voltar / Manter / Avançar nas três caixas juntas, cada um com a placa
+        /// nova encaixada sem deformar.
+        /// </summary>
+        private void LayoutBotoesDaBarra()
+        {
+            var bar = Find("MovementBar");
+            if (bar == null) return;
+
+            MontarBotaoDaBarra(bar, Find("BtnBack"),   SlotVoltar,  "hud_botao_mov", PlacaMovAspect);
+            MontarBotaoDaBarra(bar, Find("BtnStay"),   SlotManter,  "hud_botao_mov", PlacaMovAspect);
+            MontarBotaoDaBarra(bar, Find("BtnFoward"), SlotAvancar, "hud_botao_mov", PlacaMovAspect);
+        }
+
+        /// <summary>
+        /// Encaixa um botão numa caixa desenhada do banner: a placa entra com
+        /// preserveAspect (fica centrada, nunca esticada) e o rótulo se ajusta
+        /// sozinho ao espaço que a placa realmente ocupa.
+        /// </summary>
+        private void MontarBotaoDaBarra(Transform bar, Transform t, Vector4 frac,
+                                        string spriteName, float placaAspect)
+        {
+            if (t == null) return;
+
+            NaFracao(bar, t, frac);
+
+            var img = t.GetComponent<Image>();
+            if (img == null) img = t.gameObject.AddComponent<Image>();
+            var placa = Load(spriteName);
+            if (placa != null)
             {
-                group.enabled = true;
-                group.childAlignment = TextAnchor.MiddleCenter;
-                group.childForceExpandWidth = false;
-                group.spacing = 26f;
-                group.padding = new RectOffset(40, 40, 26, 24);
+                img.sprite = placa;
+                img.type = Image.Type.Simple;
+                img.preserveAspect = true;      // é isto que impede o esticão
+                img.color = Color.white;
             }
+
+            // Com o HorizontalLayoutGroup desligado o LayoutElement não manda
+            // mais em nada, mas deixá-lo por aí confunde quem for depurar.
+            var le = t.GetComponent<LayoutElement>();
+            if (le != null) le.ignoreLayout = true;
+
+            var btn = t.GetComponent<Button>();
+            if (btn != null)
+            {
+                var cb = btn.colors;
+                cb.normalColor      = Color.white;
+                cb.highlightedColor = new Color(1f, 0.97f, 0.85f);   // acende de leve
+                cb.pressedColor     = new Color(0.82f, 0.78f, 0.70f);
+                cb.selectedColor    = Color.white;
+                cb.disabledColor    = new Color(0.62f, 0.58f, 0.52f);
+                cb.fadeDuration     = 0.08f;
+                btn.colors = cb;
+            }
+
+            // Área que a placa realmente ocupa dentro da caixa
+            var caixa = new Vector2((frac.y - frac.x) * _barSize.x,
+                                    (frac.w - frac.z) * _barSize.y);
+            var placaSize = new Vector2(Mathf.Min(caixa.x, caixa.y * placaAspect),
+                                        Mathf.Min(caixa.y, caixa.x / placaAspect));
+
+            foreach (var label in t.GetComponentsInChildren<TextMeshProUGUI>(true))
+            {
+                SetRect(label.transform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                        new Vector2(0.5f, 0.5f), Vector2.zero,
+                        new Vector2(placaSize.x * 0.80f, placaSize.y * 0.56f));
+
+                label.color = Ink;                       // tinta sobre o pergaminho
+                label.fontStyle = FontStyles.Bold;
+                label.alignment = TextAlignmentOptions.Center;
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.raycastTarget = false;
+
+                // Auto-size: o mesmo rótulo serve de 720p a 4K sem estourar a placa
+                label.enableAutoSizing = true;
+                label.fontSizeMin = 6f;
+                label.fontSizeMax = Mathf.Max(10f, placaSize.y * 0.40f);
+            }
+        }
+
+        /// <summary>Posiciona um filho numa região medida em fração da arte do pai.</summary>
+        private static RectTransform NaFracao(Transform pai, Transform filho, Vector4 frac)
+        {
+            if (filho == null) return null;
+
+            var rt = filho as RectTransform;
+            if (rt == null) rt = filho.gameObject.AddComponent<RectTransform>();
+            if (filho.parent != pai) filho.SetParent(pai, false);
+
+            rt.anchorMin = new Vector2(frac.x, 1f - frac.w);
+            rt.anchorMax = new Vector2(frac.y, 1f - frac.z);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+            return rt;
         }
 
         /// <summary>
@@ -473,59 +627,43 @@ namespace QueryQuest.UI
         }
 
         /// <summary>
-        /// O livro DESENHADO na barra vira área clicável, e o botão "Abrir
-        /// Grimório" fica logo abaixo dele. Passar o mouse em qualquer um acende
-        /// o livro; clicar em qualquer um abre o grimório.
+        /// O grimório mora no medalhão redondo do topo da barra: só o ícone do
+        /// livro, sem placa e sem rótulo. Fechado por padrão, acende (abre) quando
+        /// o mouse passa por cima e abre o grimório no clique.
         /// </summary>
         private void BuildGrimoireButton()
         {
-            var section = Find("ArenaSection");
-            if (section == null || Child(section, "BtnGrimoire") != null) return;
+            var bar = Find("MovementBar");
+            if (bar == null || Child(bar, "BtnGrimoire") != null) return;
 
             var go = new GameObject("BtnGrimoire", typeof(RectTransform));
-            go.transform.SetParent(section, false);
-            // Centralizado, apoiado na borda de cima da barra (que tem 200 de altura)
-            SetRect(go.transform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-                    new Vector2(0f, 143f), new Vector2(264f, 75f));
+            NaFracao(bar, go.transform, SlotGrimorio);
 
+            // Sem arte própria: o medalhão já está desenhado no banner. A imagem
+            // existe só para o botão ter o que receber de raycast.
             var img = go.AddComponent<Image>();
-            var frame = Load("hud_botao");
-            if (frame != null) UiFrame.Apply(img, frame, 0.5f);
+            img.color = new Color(1f, 1f, 1f, 0f);
 
             var btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
-            btn.onClick.AddListener(() => CombatManager.Instance?.OpenGrimoire());
+            btn.onClick.AddListener(GrimoireUI.AbrirLivre);
 
-            // Ícone do livro: fechado, abre quando o mouse passa por cima do botão
+            // O tint do Button pintaria a imagem invisível, não o livro
+            var cb = btn.colors;
+            cb.normalColor = cb.highlightedColor = cb.pressedColor =
+                cb.selectedColor = cb.disabledColor = new Color(1f, 1f, 1f, 0f);
+            btn.colors = cb;
+
             var iconGO = new GameObject("BookIcon", typeof(RectTransform));
             iconGO.transform.SetParent(go.transform, false);
-            SetRect(iconGO.transform, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(0f, 0.5f),
-                    new Vector2(14f, 0f), new Vector2(62f, 52f));
-            var iconImg = iconGO.AddComponent<Image>();
-            iconImg.raycastTarget = false;
-            iconImg.preserveAspect = true;
+            Stretch(iconGO.transform, 0f, 0f, 0f, 0f);
 
-            // O handler vai no BOTÃO (é ele que recebe o ponteiro; o ícone não)
+            var iconImg = iconGO.AddComponent<Image>();
+            iconImg.raycastTarget = false;      // quem recebe o ponteiro é o botão
+            iconImg.preserveAspect = true;      // o livro nunca deforma no círculo
+
             go.AddComponent<GrimoireBookIcon>()
               .Setup(iconImg, Load("grimorio_aberto"), Load("grimorio_fechado"));
-
-            // Rótulo
-            var labelGO = new GameObject("Label", typeof(RectTransform));
-            labelGO.transform.SetParent(go.transform, false);
-            var labelRT = (RectTransform)labelGO.transform;
-            labelRT.anchorMin = new Vector2(0f, 0f);
-            labelRT.anchorMax = new Vector2(1f, 1f);
-            labelRT.offsetMin = new Vector2(80f, 6f);
-            labelRT.offsetMax = new Vector2(-12f, -6f);
-
-            var label = labelGO.AddComponent<TextMeshProUGUI>();
-            label.text = "ABRIR GRIMORIO";
-            label.fontSize = 15f;              // o TextStyler ainda aplica +20%
-            label.fontStyle = FontStyles.Bold;
-            label.alignment = TextAlignmentOptions.Center;
-            label.textWrappingMode = TextWrappingModes.NoWrap;
-            label.color = Color.white;
-            label.raycastTarget = false;
         }
 
         /// <summary>
@@ -540,26 +678,246 @@ namespace QueryQuest.UI
             FragmentosUI.Create(canvas);
         }
 
+        /// <summary>
+        /// Tutorial: abre sozinho num jogo novo e fica acessível pelo botão AJUDA,
+        /// no topo do grimório (ao lado do X).
+        /// </summary>
+        private void BuildTutorial()
+        {
+            var canvas = Find("CombatCanvas");
+            if (canvas == null || TutorialPopup.Instance != null) return;
+
+            var popup = TutorialPopup.Create(canvas);
+
+            var panel = Find("GrimoirePanel");
+            var barraTopo = panel != null ? (Child(panel, "Header") ?? panel) : null;
+            if (barraTopo != null && Child(barraTopo, "BtnAjuda") == null)
+            {
+                var go = new GameObject("BtnAjuda", typeof(RectTransform));
+                go.transform.SetParent(barraTopo, false);
+                go.transform.SetAsLastSibling();
+
+                // No cabeçalho, logo à esquerda do X
+                SetRect(go.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                        new Vector2(-56f, 0f), new Vector2(84f, 32f));
+
+                go.AddComponent<Image>();
+
+                var btn = go.AddComponent<Button>();
+                btn.onClick.AddListener(popup.Abrir);
+                GrimoireSkin.VestirBotao(btn);   // dentro do grimório: paleta do grimório
+
+                var labelGO = new GameObject("Label", typeof(RectTransform));
+                labelGO.transform.SetParent(go.transform, false);
+                Stretch(labelGO.transform, 6f, 3f, 6f, 3f);
+
+                var label = labelGO.AddComponent<TextMeshProUGUI>();
+                label.text = "AJUDA";
+                label.fontSize = 15f;
+                label.fontStyle = FontStyles.Bold;
+                label.alignment = TextAlignmentOptions.Center;
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.color = Color.white;
+                label.raycastTarget = false;
+            }
+
+            // Jogo novo → abre a explicação uma vez
+            if (GameSession.MostrarTutorial)
+            {
+                GameSession.MostrarTutorial = false;
+                popup.Abrir();
+            }
+        }
+
+        /// <summary>
+        /// "Encerrar Turno", à direita de "Avançar". A magia e o movimento não
+        /// passam mais a vez sozinhos — quem encerra o turno é o jogador.
+        /// </summary>
+        private void BuildEndTurnButton()
+        {
+            var bar = Find("MovementBar");
+            if (bar == null || Child(bar, "BtnEndTurn") != null) return;
+
+            var go = new GameObject("BtnEndTurn", typeof(RectTransform));
+            go.transform.SetParent(bar, false);
+
+            var img = go.AddComponent<Image>();
+
+            var btn = go.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(() => CombatManager.Instance?.EndTurn());
+
+            var labelGO = new GameObject("Label", typeof(RectTransform));
+            labelGO.transform.SetParent(go.transform, false);
+
+            var label = labelGO.AddComponent<TextMeshProUGUI>();
+            label.text = "ENCERRAR TURNO";
+
+            // Vai na caixa larga da direita, com a placa de cantos ogivais —
+            // que é justamente o formato daquela caixa.
+            MontarBotaoDaBarra(bar, go.transform, SlotTurno, "hud_botao_turno", PlacaTurnoAspect);
+
+            go.AddComponent<EndTurnButton>().Setup(btn);
+        }
+
+        /// <summary>
+        /// Veste o grimório na paleta da HUD, com superfícies geradas em runtime,
+        /// e troca as abas Arsenal e Docs por uma única aba TABELAS.
+        /// As artes da HUD NÃO servem aqui: são banners largos, com ornamento nas
+        /// pontas, que deformam num painel alto e estreito.
+        /// </summary>
+        private void SkinGrimoire()
+        {
+            var painel = Find("GrimoirePanel");
+            if (painel == null) return;
+
+            GrimoireSkin.Aplicar(painel);
+            GrimoireAcimaDeTudo(painel);
+
+            var barra = Child(painel, "TabBar");
+            var area  = Child(painel, "ContentArea");
+            if (barra == null || area == null) return;
+
+            var abaQuery   = Child(barra, "TabQuery");
+            var abaMagias  = Child(barra, "TabMagias");
+            var abaArsenal = Child(barra, "TabArsenal");
+            var abaDocs    = Child(barra, "TabDocs");
+
+            var pQuery   = Child(area, "PanelQuery");
+            var pMagias  = Child(area, "PanelMagias");
+            var pArsenal = Child(area, "PanelArsenal");
+            var pDocs    = Child(area, "PanelDocs");
+
+            // Docs sai de cena: o conteúdo dela foi absorvido pela aba TABELAS
+            if (abaDocs != null) abaDocs.gameObject.SetActive(false);
+            if (pDocs   != null) pDocs.gameObject.SetActive(false);
+
+            // Arsenal vira TABELAS
+            if (abaArsenal != null)
+                foreach (var tmp in abaArsenal.GetComponentsInChildren<TextMeshProUGUI>(true))
+                    tmp.text = "TABELAS";
+
+            if (pArsenal != null) TabelasUI.Instalar(pArsenal);
+            if (pMagias  != null) MagiasUI.Instalar(pMagias);
+
+            GrimoireSkin.RegistrarAba(abaQuery?.GetComponent<Button>(),   pQuery?.gameObject);
+            GrimoireSkin.RegistrarAba(abaMagias?.GetComponent<Button>(),  pMagias?.gameObject);
+            GrimoireSkin.RegistrarAba(abaArsenal?.GetComponent<Button>(), pArsenal?.gameObject);
+            GrimoireSkin.RepintarAbas();
+        }
+
+        /// <summary>
+        /// O grimório passa a desenhar por cima de TODA a HUD e vira arrastável
+        /// pelo cabeçalho.
+        ///
+        /// Ordem de irmãos não resolveria: o painel do inimigo, os slots e a barra
+        /// de baixo são criados/reposicionados em momentos diferentes. Um Canvas
+        /// aninhado com overrideSorting garante a camada de cima de uma vez —
+        /// e ele precisa do próprio GraphicRaycaster para continuar clicável.
+        /// </summary>
+        private void GrimoireAcimaDeTudo(Transform painel)
+        {
+            var canvas = painel.GetComponent<Canvas>();
+            if (canvas == null) canvas = painel.gameObject.AddComponent<Canvas>();
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 500;
+
+            if (painel.GetComponent<GraphicRaycaster>() == null)
+                painel.gameObject.AddComponent<GraphicRaycaster>();
+
+            var arrasto = painel.GetComponent<DraggablePanel>();
+            if (arrasto == null) arrasto = painel.gameObject.AddComponent<DraggablePanel>();
+            // A alça é só o cabeçalho: arrastar pelo painel inteiro brigaria com a
+            // rolagem das abas e com o campo de consulta.
+            arrasto.Configurar(Child(painel, "Header") as RectTransform);
+        }
+
+        /// <summary>
+        /// Os nomes das colunas do banco ao lado de cada barra de vida: Magias
+        /// junto do jogador, Inimigos junto do golem. É a consulta que o aluno
+        /// vai escrever, então o vocabulário fica à vista o tempo todo.
+        /// </summary>
+        private void BuildColunasDoBanco()
+        {
+            var statusBars = Find("StatusBars");
+            if (statusBars == null || statusBars.parent == null) return;
+            if (Child(statusBars.parent, "ColunasMagias") != null) return;
+
+            var pai = statusBars.parent;
+
+            // À direita do painel do jogador (que fica no canto superior esquerdo)
+            var magias = CriarLegendaColunas(pai, "ColunasMagias", "Magias",
+                new Vector2(0f, 1f), new Vector2(0f, 1f),
+                new Vector2(PlayerPanelSize.x + 26f, -20f), TextAlignmentOptions.TopLeft);
+
+            // À esquerda do painel do inimigo (canto superior direito)
+            var inimigos = CriarLegendaColunas(pai, "ColunasInimigos", "Inimigos",
+                new Vector2(1f, 1f), new Vector2(1f, 1f),
+                new Vector2(-(EnemyPanelSize.x + 26f), -20f), TextAlignmentOptions.TopRight);
+
+            if (inimigos != null) inimigos.rectTransform.pivot = new Vector2(1f, 1f);
+        }
+
+        private TextMeshProUGUI CriarLegendaColunas(Transform pai, string nome, string tabela,
+                                                    Vector2 ancora, Vector2 pivo, Vector2 pos,
+                                                    TextAlignmentOptions alinhamento)
+        {
+            var go = new GameObject(nome, typeof(RectTransform));
+            go.transform.SetParent(pai, false);
+            SetRect(go.transform, ancora, ancora, pivo, pos, new Vector2(300f, 74f));
+
+            var tmp = go.AddComponent<TextMeshProUGUI>();
+            tmp.text = SchemaGuia.LinhaDeColunas(tabela);
+            tmp.fontSize = 12f;
+            tmp.color = new Color(0.94f, 0.90f, 0.80f);
+            tmp.alignment = alinhamento;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
+            tmp.raycastTarget = false;
+            tmp.lineSpacing = 4f;
+
+            // Contorno escuro: o texto fica sobre o cenário, que muda a cada andar
+            tmp.fontMaterial.EnableKeyword("OUTLINE_ON");
+            tmp.outlineColor = new Color32(20, 12, 4, 255);
+            tmp.outlineWidth = 0.22f;
+
+            // O banco pode ainda não estar carregado quando a HUD é montada
+            if (string.IsNullOrEmpty(tmp.text)) StartCoroutine(PreencherQuandoOBancoAbrir(tmp, tabela));
+            return tmp;
+        }
+
+        private IEnumerator PreencherQuandoOBancoAbrir(TextMeshProUGUI tmp, string tabela)
+        {
+            float limite = Time.realtimeSinceStartup + 20f;
+            while (tmp != null && string.IsNullOrEmpty(tmp.text) && Time.realtimeSinceStartup < limite)
+            {
+                yield return new WaitForSeconds(0.25f);
+                if (tmp != null) tmp.text = SchemaGuia.LinhaDeColunas(tabela);
+            }
+        }
+
         /// <summary>X no canto do grimório — fecha a tela.</summary>
         private void BuildGrimoireCloseButton()
         {
             var panel = Find("GrimoirePanel");
-            if (panel == null || Child(panel, "BtnCloseGrimoire") != null) return;
+            if (panel == null) return;
+
+            // Moram no cabeçalho, ao lado do título — antes ficavam no canto do
+            // painel e cobriam a aba TABELAS.
+            var barraTopo = Child(panel, "Header") ?? panel;
+            if (Child(barraTopo, "BtnCloseGrimoire") != null) return;
 
             var go = new GameObject("BtnCloseGrimoire", typeof(RectTransform));
-            go.transform.SetParent(panel, false);
-            go.transform.SetAsLastSibling();   // por cima do conteúdo do grimório
+            go.transform.SetParent(barraTopo, false);
+            go.transform.SetAsLastSibling();
 
-            SetRect(go.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-                    new Vector2(-10f, -10f), new Vector2(46f, 46f));
+            SetRect(go.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+                    new Vector2(-12f, 0f), new Vector2(38f, 32f));
 
-            var img = go.AddComponent<Image>();
-            var frame = Load("hud_botao");
-            if (frame != null) UiFrame.Apply(img, frame, 0.5f);
+            go.AddComponent<Image>();
 
             var btn = go.AddComponent<Button>();
-            btn.targetGraphic = img;
-            btn.onClick.AddListener(() => CombatManager.Instance?.CloseGrimoire());
+            btn.onClick.AddListener(GrimoireUI.FecharLivre);
+            GrimoireSkin.VestirBotao(btn);   // dentro do grimório: paleta do grimório
 
             var labelGO = new GameObject("X", typeof(RectTransform));
             labelGO.transform.SetParent(go.transform, false);
@@ -704,6 +1062,36 @@ namespace QueryQuest.UI
                 if (found != null) return found;
             }
             return null;
+        }
+    }
+
+    /// <summary>Só deixa encerrar o turno quando é a vez do jogador.</summary>
+    public class EndTurnButton : MonoBehaviour
+    {
+        private Button _btn;
+
+        public void Setup(Button btn)
+        {
+            _btn = btn;
+            Refresh(CombatManager.Instance != null ? CombatManager.Instance.CurrentState : CombatState.IDLE);
+        }
+
+        private void Start()
+        {
+            if (CombatManager.Instance != null)
+                CombatManager.Instance.OnStateChanged += Refresh;
+        }
+
+        private void OnDestroy()
+        {
+            if (CombatManager.Instance != null)
+                CombatManager.Instance.OnStateChanged -= Refresh;
+        }
+
+        private void Refresh(CombatState state)
+        {
+            if (_btn == null) return;
+            _btn.interactable = state == CombatState.PLAYER_TURN || state == CombatState.GRIMOIRE_OPEN;
         }
     }
 

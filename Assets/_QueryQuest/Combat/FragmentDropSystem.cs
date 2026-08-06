@@ -19,6 +19,18 @@ namespace QueryQuest.Combat
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoCreate()
         {
+            // Roda uma vez por execução: precisa recriar a cada cena, porque este
+            // objeto não sobrevive à troca (o jogo começa pelo menu).
+            Criar();
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= AoCarregarCena;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += AoCarregarCena;
+        }
+
+        private static void AoCarregarCena(UnityEngine.SceneManagement.Scene cena,
+                                           UnityEngine.SceneManagement.LoadSceneMode modo) => Criar();
+
+        private static void Criar()
+        {
             if (Instance != null) return;
             var go = new GameObject("~FragmentDrops");
             go.AddComponent<FragmentDropSystem>();
@@ -144,8 +156,8 @@ namespace QueryQuest.Combat
             bool isBoss = floor != null && floor.CurrentFloor >= floor.TotalFloors;
 
             string msg = isBoss
-                ? "Bom trabalho! O primordial caiu e deixou a essência dele. Absorva com o grimório: use o JOIN para tomar o poder dele!"
-                : $"Bom trabalho! Ele deixou uma essência de {enemy.Elemento} cair. Absorva com o grimório usando o JOIN para te fortalecer!";
+                ? "Bom trabalho! O primordial caiu e deixou a essência dele. Escreva o JOIN e tome esse poder para você!"
+                : $"Bom trabalho! Ele deixou uma essência de {enemy.Elemento} cair. Escreva o JOIN para absorvê-la e ficar mais forte!";
 
             SpiritCompanion.Instance?.Say(msg);
         }

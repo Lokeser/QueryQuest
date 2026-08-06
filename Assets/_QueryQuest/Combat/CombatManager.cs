@@ -24,6 +24,9 @@ namespace QueryQuest.Combat
         public int         EnemyCurrentHP  { get; private set; }
         public int         PlayerCurrentHP { get; private set; }
         public int         PlayerMaxHP     { get; private set; } = 100;
+
+        /// <summary>Uma magia por turno — o turno em si só acaba pelo botão "Encerrar Turno".</summary>
+        public bool SpellUsedThisTurn { get; private set; }
         public string      CurrentDistance { get; private set; } = "MEDIO";
 
         // ─── Referências -----------------------------─────────────────────────
@@ -77,8 +80,9 @@ namespace QueryQuest.Combat
             Log($"[COMBATE] Combate iniciado contra {enemy.Nome}!");
             Log($"[HP] Seu HP: {PlayerCurrentHP}/{PlayerMaxHP}  |  [DERROTA] {enemy.Nome}: {EnemyCurrentHP}/{enemy.HP}");
             Log("-----------------------------");
-            Log("Seu turno! Mova-se e abra o grimório para atacar.");
+            Log("Seu turno! Uma magia e um movimento — encerre o turno quando terminar.");
 
+            SpellUsedThisTurn = false;
             _slots?.ResetPositions();
             ManaSystem.Instance?.ResetMana();
             OnHealthChanged?.Invoke();
@@ -163,6 +167,14 @@ namespace QueryQuest.Combat
                 return result;
             }
 
+            // Uma magia por turno (a mana só é cobrada se o feitiço vai sair mesmo)
+            if (SpellUsedThisTurn)
+            {
+                Log("[AVISO] Você já lançou uma magia neste turno. Mova-se ou encerre o turno.");
+                TransitionTo(CombatState.GRIMOIRE_OPEN);
+                return result;
+            }
+
             // ── CUSTO DE MANA por especificidade da query ──
             int manaCost = ManaSystem.Instance?.CalculateCost(rawQuery) ?? 0;
 
@@ -231,6 +243,14 @@ namespace QueryQuest.Combat
         /// </summary>
         private void HandleAnalise(string rawQuery)
         {
+            // Analise também é uma magia: gasta a ação de magia do turno
+            if (SpellUsedThisTurn)
+            {
+                Log("[AVISO] Você já lançou uma magia neste turno. Mova-se ou encerre o turno.");
+                TransitionTo(CombatState.GRIMOIRE_OPEN);
+                return;
+            }
+
             // Extrai as colunas do SELECT
             var match = System.Text.RegularExpressions.Regex.Match(
                 rawQuery, @"SELECT\s+(.+?)\s+FROM",
@@ -281,8 +301,9 @@ namespace QueryQuest.Combat
                     RevealColumn(raw.Trim());
             }
 
-            // Análise consome o turno → vai para o turno do inimigo
-            EndPlayerTurn();
+            // Análise gasta a magia do turno, mas quem encerra o turno é o jogador
+            SpellUsedThisTurn = true;
+            ResumePlayerTurn();
         }
 
         private void RevealColumn(string col)
@@ -322,6 +343,7 @@ namespace QueryQuest.Combat
         private void CastSpell(SpellData spell)
         {
             TransitionTo(CombatState.SPELL_CAST);
+            SpellUsedThisTurn = true;   // a magia do turno foi gasta (acertando ou não)
 
             var targetSlots = _slots?.GetTargetSlots(spell.Distancia) ?? new System.Collections.Generic.List<int>();
             string slotsStr = targetSlots.Count > 0 ? string.Join(", ", targetSlots) : "nenhum";
@@ -340,7 +362,7 @@ namespace QueryQuest.Combat
             if (!hits)
             {
                 Log($"[ERRO] O inimigo (slot {_slots?.EnemySlot}) está fora da área da magia! Você errou.");
-                EndPlayerTurn();
+                ResumePlayerTurn();   // errar gasta a magia, mas não encerra o turno
                 return;
             }
 
@@ -429,16 +451,43 @@ namespace QueryQuest.Combat
 
             // Combate continua
             if (wasPlayerAttacking)
-                StartEnemyTurn();   // jogador atacou → agora é o turno do inimigo
+                ResumePlayerTurn(); // a magia NÃO encerra o turno — quem encerra é o jogador
             else
-                StartPlayerTurn();  // inimigo atacou → volta ao turno do jogador
+                StartPlayerTurn();  // inimigo atacou → começa um turno novo
+        }
+
+        /// <summary>
+        /// Volta ao turno do jogador DEPOIS de uma ação, sem devolver as ações já
+        /// gastas (magia e movimento continuam consumidos até o turno acabar).
+        /// </summary>
+        private void ResumePlayerTurn()
+        {
+            bool podeMover = _slots?.HasMovementAction ?? false;
+            Log(podeMover
+                ? "[COMBATE] Magia lançada. Você ainda pode se mover, ou encerrar o turno."
+                : "[COMBATE] Magia lançada. Encerre o turno quando quiser.");
+
+            TransitionTo(CombatState.PLAYER_TURN);
+        }
+
+        /// <summary>Botão "Encerrar Turno": passa a vez para o inimigo.</summary>
+        public void EndTurn()
+        {
+            if (CurrentState == CombatState.GRIMOIRE_OPEN)
+                CloseGrimoire();   // fecha o grimório antes de passar a vez
+
+            if (CurrentState != CombatState.PLAYER_TURN) return;
+
+            Log("[COMBATE] Você encerrou o turno.");
+            StartEnemyTurn();
         }
 
         private void StartPlayerTurn()
         {
             _slots?.ResetMovementAction();
+            SpellUsedThisTurn = false;
             Log("-----------------------------");
-            Log("[COMBATE] Seu turno! Mova-se e abra o grimório para atacar.");
+            Log("[COMBATE] Seu turno! Uma magia e um movimento — encerre o turno quando terminar.");
             if (_slots != null)
                 Log($"[HP] Seu HP: {PlayerCurrentHP}/{PlayerMaxHP}  |  [DERROTA] {CurrentEnemy.Nome}: {EnemyCurrentHP}/{CurrentEnemy.HP}  |  {_slots.GetStatusString()}");
             else

@@ -55,7 +55,8 @@ namespace QueryQuest.Combat
             // Reseta stats da run
             PlayerStats.Instance?.ResetStats();
 
-            StartFloor(1);
+            // O menu decide onde a run começa (1 = jogo novo, N = "Continuar")
+            StartFloor(Mathf.Clamp(GameSession.AndarInicial, 1, totalFloors));
         }
 
         private void OnDestroy()
@@ -71,6 +72,10 @@ namespace QueryQuest.Combat
         public void StartFloor(int floor)
         {
             CurrentFloor = floor;
+
+            // Guarda o progresso para o "Continuar" do menu (só na run normal —
+            // no Modo Infinito o andar não representa mais o avanço da campanha)
+            if (Loop == 0 && floor <= totalFloors) GameSession.SalvarAndar(floor);
 
             if (floor > totalFloors)
             {

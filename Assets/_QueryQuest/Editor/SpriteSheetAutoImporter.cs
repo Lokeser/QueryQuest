@@ -52,16 +52,22 @@ namespace QueryQuest.EditorTools
 
         /// <summary>
         /// Bordas exatas (em pixels da própria arte), para imagens em que a
-        /// fração genérica erra feio. Medido nos pixels da arte:
-        /// hud_baixo é um banner 1900x235 — a fração genérica (28% = 532px de
-        /// cada lado) comeria quase toda a largura como "borda", inchando os
-        /// cantos e borrando o entalhe ao esticar. As pontas reais medem ~150px
-        /// (7-8% da largura); o topo tem ~72px por causa do adorno em pico, a
-        /// base só ~28px. Vector4 = (esquerda, baixo, direita, cima).
+        /// fração genérica erra feio. Vector4 = (esquerda, baixo, direita, cima).
         /// </summary>
         private static readonly Dictionary<string, Vector4> BordasEspecificas = new Dictionary<string, Vector4>
         {
-            ["hud_baixo"] = new Vector4(165f, 32f, 165f, 80f),
+        };
+
+        /// <summary>
+        /// Artes que NUNCA são esticadas: entram com Image.Type.Simple e
+        /// preserveAspect, mantendo a proporção original. Marcar borda de
+        /// 9-slice nelas não faria nada além de confundir quem for mexer depois.
+        /// hud_baixo tem um arco no meio e as caixas dos botões já desenhadas —
+        /// qualquer esticão deformaria o arco e desalinharia as caixas.
+        /// </summary>
+        private static readonly HashSet<string> SemBorda = new HashSet<string>
+        {
+            "hud_baixo", "hud_botao_mov", "hud_botao_turno",
         };
 
         private void OnPreprocessTexture()
@@ -93,7 +99,11 @@ namespace QueryQuest.EditorTools
                     importer.crunchedCompression = false;
 
                     string uiName = Path.GetFileNameWithoutExtension(path);
-                    if (BordasEspecificas.TryGetValue(uiName, out var borda))
+                    if (SemBorda.Contains(uiName))
+                    {
+                        importer.spriteBorder = Vector4.zero;
+                    }
+                    else if (BordasEspecificas.TryGetValue(uiName, out var borda))
                     {
                         importer.spriteBorder = borda;
                     }

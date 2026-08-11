@@ -28,16 +28,18 @@ o combate NUNCA começa, e a partir daí:
 Ou seja: **botões travados, magias sumidas e vida zerada eram sintomas, não
 defeitos separados.** Resolvido o banco, os três desaparecem juntos.
 
-A causa: o arquivo `Assets/Plugins/SQLite/x86_64/sqlite3.dll.meta` não tinha
-bloco `PluginImporter`. Sem ele, o Unity não reconhece o arquivo como plugin
-nativo x86_64 e não o copia para a build. No editor funciona, porque lá as DLLs
-são carregadas direto da pasta do projeto.
+A causa raiz: **a sqlite3.dll do projeto era um binário ARM64**, não x86_64 —
+arquitetura errada para qualquer PC comum. No editor do desktop o jogo
+funcionava por acidente: quando o plugin não carrega, o Mono procura uma
+`sqlite3.dll` no PATH do sistema e encontrava a do miniconda (x64). No notebook
+não há miniconda, o fallback não existe, e o banco morria na abertura.
 
-**Isso já foi corrigido no repositório.** As duas correções estão versionadas:
+**Isso já foi corrigido no repositório.** As correções estão versionadas:
 
 | Arquivo | Para que serve |
 |---|---|
-| `Assets/Plugins/SQLite/x86_64/sqlite3.dll.meta` | marca a DLL como plugin nativo Windows x86_64, para Editor e Standalone |
+| `Assets/Plugins/SQLite/x86_64/sqlite3.dll` | substituída por uma SQLite 3.45.3 x86_64 de verdade (verificada no cabeçalho PE e testada isolada, sem PATH) |
+| `Assets/Plugins/SQLite/x86_64/sqlite3.dll.meta` | plugin nativo Windows x86_64, habilitado para Editor e Standalone Win64 |
 | `Assets/link.xml` | impede o *managed stripping* de remover os tipos que o sqlite-net usa por reflexão |
 
 ---

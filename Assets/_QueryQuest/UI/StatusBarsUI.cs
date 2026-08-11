@@ -55,6 +55,13 @@ namespace QueryQuest.UI
         public void UseArtSkin()
         {
             hpFull = hpLow = manaColor = enemyHPColor = Color.white;
+
+            // Os números sobre as barras de arte: em preto — o branco da cena
+            // some sobre o verde/azul/vermelho claros do pergaminho.
+            if (playerHPText != null)   playerHPText.color = Color.black;
+            if (playerManaText != null) playerManaText.color = Color.black;
+            if (enemyHPText != null)    enemyHPText.color = Color.black;
+
             RefreshHealth();
             if (ManaSystem.Instance != null)
                 RefreshMana(ManaSystem.Instance.CurrentMana, ManaSystem.Instance.MaxMana);

@@ -1,0 +1,23 @@
+<!--
+  Protege do "managed stripping" os tipos que o sqlite-net acessa por REFLEXÃO.
+
+  O mapeamento de colunas do banco para as classes é feito em tempo de execução,
+  lendo os atributos [Table] e [Column] por reflexão. O stripping olha apenas as
+  referências estáticas do código: como nada chama os setters dessas propriedades
+  diretamente, ele pode removê-los da build. O jogo então abre o banco sem erro,
+  mas devolve listas vazias — sintoma clássico de "não carrega as magias".
+
+  No editor isso nunca aparece, porque lá não há stripping.
+-->
+<linker>
+  <assembly fullname="Assembly-CSharp">
+    <namespace fullname="QueryQuest.Models" preserve="all"/>
+  </assembly>
+
+  <assembly fullname="Assembly-CSharp-firstpass">
+    <namespace fullname="SQLite" preserve="all"/>
+  </assembly>
+
+  <assembly fullname="Mono.Data.Sqlite" preserve="all"/>
+  <assembly fullname="System.Data" preserve="all"/>
+</linker>

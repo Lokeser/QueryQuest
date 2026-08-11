@@ -141,7 +141,6 @@ namespace QueryQuest.UI
             BuildGrimoireButton();
             BuildGrimoireCloseButton();
             SkinGrimoire();
-            BuildColunasDoBanco();
             BuildFragmentosPanel();
             BuildTutorial();
             ApplyTextStyle();
@@ -830,69 +829,6 @@ namespace QueryQuest.UI
             // A alça é só o cabeçalho: arrastar pelo painel inteiro brigaria com a
             // rolagem das abas e com o campo de consulta.
             arrasto.Configurar(Child(painel, "Header") as RectTransform);
-        }
-
-        /// <summary>
-        /// Os nomes das colunas do banco ao lado de cada barra de vida: Magias
-        /// junto do jogador, Inimigos junto do golem. É a consulta que o aluno
-        /// vai escrever, então o vocabulário fica à vista o tempo todo.
-        /// </summary>
-        private void BuildColunasDoBanco()
-        {
-            var statusBars = Find("StatusBars");
-            if (statusBars == null || statusBars.parent == null) return;
-            if (Child(statusBars.parent, "ColunasMagias") != null) return;
-
-            var pai = statusBars.parent;
-
-            // À direita do painel do jogador (que fica no canto superior esquerdo)
-            var magias = CriarLegendaColunas(pai, "ColunasMagias", "Magias",
-                new Vector2(0f, 1f), new Vector2(0f, 1f),
-                new Vector2(PlayerPanelSize.x + 26f, -20f), TextAlignmentOptions.TopLeft);
-
-            // À esquerda do painel do inimigo (canto superior direito)
-            var inimigos = CriarLegendaColunas(pai, "ColunasInimigos", "Inimigos",
-                new Vector2(1f, 1f), new Vector2(1f, 1f),
-                new Vector2(-(EnemyPanelSize.x + 26f), -20f), TextAlignmentOptions.TopRight);
-
-            if (inimigos != null) inimigos.rectTransform.pivot = new Vector2(1f, 1f);
-        }
-
-        private TextMeshProUGUI CriarLegendaColunas(Transform pai, string nome, string tabela,
-                                                    Vector2 ancora, Vector2 pivo, Vector2 pos,
-                                                    TextAlignmentOptions alinhamento)
-        {
-            var go = new GameObject(nome, typeof(RectTransform));
-            go.transform.SetParent(pai, false);
-            SetRect(go.transform, ancora, ancora, pivo, pos, new Vector2(300f, 74f));
-
-            var tmp = go.AddComponent<TextMeshProUGUI>();
-            tmp.text = SchemaGuia.LinhaDeColunas(tabela);
-            tmp.fontSize = 12f;
-            tmp.color = new Color(0.94f, 0.90f, 0.80f);
-            tmp.alignment = alinhamento;
-            tmp.textWrappingMode = TextWrappingModes.Normal;
-            tmp.raycastTarget = false;
-            tmp.lineSpacing = 4f;
-
-            // Contorno escuro: o texto fica sobre o cenário, que muda a cada andar
-            tmp.fontMaterial.EnableKeyword("OUTLINE_ON");
-            tmp.outlineColor = new Color32(20, 12, 4, 255);
-            tmp.outlineWidth = 0.22f;
-
-            // O banco pode ainda não estar carregado quando a HUD é montada
-            if (string.IsNullOrEmpty(tmp.text)) StartCoroutine(PreencherQuandoOBancoAbrir(tmp, tabela));
-            return tmp;
-        }
-
-        private IEnumerator PreencherQuandoOBancoAbrir(TextMeshProUGUI tmp, string tabela)
-        {
-            float limite = Time.realtimeSinceStartup + 20f;
-            while (tmp != null && string.IsNullOrEmpty(tmp.text) && Time.realtimeSinceStartup < limite)
-            {
-                yield return new WaitForSeconds(0.25f);
-                if (tmp != null) tmp.text = SchemaGuia.LinhaDeColunas(tabela);
-            }
         }
 
         /// <summary>X no canto do grimório — fecha a tela.</summary>

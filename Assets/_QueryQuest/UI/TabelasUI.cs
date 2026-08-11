@@ -68,6 +68,13 @@ namespace QueryQuest.UI
             viewport.transform.SetParent(scrollGO.transform, false);
             Esticar(viewport.transform, 0f, 0f, 0f, 0f);
             viewport.AddComponent<RectMask2D>();
+            // O ScrollRect só recebe a roda do mouse se houver um Graphic com
+            // raycastTarget sob o cursor. Como todos os cartões e textos são
+            // raycastTarget=false, é esta imagem invisível que capta o evento —
+            // sem ela a rolagem simplesmente não responde.
+            var captura = viewport.AddComponent<Image>();
+            captura.color = new Color(0f, 0f, 0f, 0f);
+            captura.raycastTarget = true;
             scroll.viewport = (RectTransform)viewport.transform;
 
             var conteudo = new GameObject("Conteudo", typeof(RectTransform));
@@ -127,18 +134,20 @@ namespace QueryQuest.UI
             LayoutRebuilder.ForceRebuildLayoutImmediate(_conteudo);
         }
 
-        /// <summary>A caixa que abre a aba: só o que decide a luta agora.</summary>
+        /// <summary>
+        /// A caixa que abre a aba: as colunas das duas tabelas que o jogador
+        /// consulta o tempo todo, iguais às que ficam ao lado das barras de vida.
+        /// Vêm do esquema real do banco, com as decisivas em destaque.
+        /// </summary>
         private void Destaque()
         {
             var sb = new StringBuilder();
             sb.AppendLine($"<size=118%><b><color={HexDestaque}>O QUE VOCÊ PRECISA AGORA</color></b></size>");
             sb.AppendLine();
-            sb.AppendLine($"<b>1. Que magia lançar</b>  →  <color={HexSQL}>Magias.Elemento</color> e <color={HexSQL}>Magias.Distancia</color>");
-            sb.AppendLine($"<b>2. O que fere o golem</b>  →  <color={HexSQL}>Inimigos.FraquezaElemento</color> e <color={HexSQL}>Inimigos.FraquezaDistancia</color>");
-            sb.AppendLine($"<b>3. Absorver o fragmento</b>  →  <color={HexSQL}>Fragmentos.InimigoID = Inimigos.Id</color>");
+            // O dourado da HUD sumiria sobre o pergaminho: aqui o destaque é escuro.
+            sb.AppendLine(SchemaGuia.LinhaDeColunas("Magias", HexDestaque));
             sb.AppendLine();
-            sb.Append("<i>Casar o elemento da sua magia com a fraqueza do golem, estando na distância " +
-                      "em que ele é vulnerável, é a diferença entre arranhar e derrubar.</i>");
+            sb.Append(SchemaGuia.LinhaDeColunas("Inimigos", HexDestaque));
 
             Cartao(sb.ToString(), GrimoireSkin.PergaminhoEscuro, GrimoireSkin.Ouro, 15.5f);
         }

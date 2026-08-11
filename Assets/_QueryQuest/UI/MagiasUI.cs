@@ -82,6 +82,12 @@ namespace QueryQuest.UI
             vRT.anchorMin = Vector2.zero; vRT.anchorMax = Vector2.one;
             vRT.offsetMin = Vector2.zero; vRT.offsetMax = Vector2.zero;
             viewport.AddComponent<RectMask2D>();
+            // Imagem invisível que capta a roda do mouse: os cartões são todos
+            // raycastTarget=false, e sem um Graphic sob o cursor o ScrollRect
+            // nunca recebe o evento de rolagem.
+            var captura = viewport.AddComponent<Image>();
+            captura.color = new Color(0f, 0f, 0f, 0f);
+            captura.raycastTarget = true;
             scroll.viewport = vRT;
 
             var conteudo = new GameObject("Conteudo", typeof(RectTransform));
@@ -238,10 +244,7 @@ namespace QueryQuest.UI
                           $"dano base <b>{m.DanoBase}</b>  ·  elemento <b>{m.Elemento}</b></size>");
 
             if (!string.IsNullOrEmpty(m.Descricao))
-                sb.AppendLine($"<size=88%><i>{m.Descricao}</i></size>");
-
-            // A consulta que devolve exatamente esta magia
-            sb.Append($"<size=90%><color=#6B3410><b>SELECT * FROM Magias WHERE Nome = '{m.Nome}'</b></color></size>");
+                sb.Append($"<size=88%><i>{m.Descricao}</i></size>");
 
             if (!liberada)
                 sb.Append("\n<size=86%><i>Absorva um fragmento de " + m.Elemento + " para desbloquear.</i></size>");

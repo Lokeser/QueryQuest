@@ -202,10 +202,12 @@ namespace QueryQuest.Combat
             if (db == null) return;
             try
             {
-                // Mantém desbloqueadas apenas as magias iniciais (Desbloqueado padrão = 1 no seed)
-                // Re-bloqueia as que foram desbloqueadas por páginas durante a run.
-                db.Execute("UPDATE Magias SET Desbloqueado = 0 WHERE Nivel >= 2");
-                db.Execute("UPDATE Magias SET Desbloqueado = 1 WHERE Nivel = 1");
+                // Re-bloqueia só o que a run desbloqueou: as magias ELEMENTAIS de
+                // nível 2 ou 3, que vêm dos fragmentos. As magias neutras são
+                // utilitárias (Analise, Inspecionar Fragmento) e o jogador nasce
+                // com elas — um reset por nível puro as trancava junto.
+                db.Execute("UPDATE Magias SET Desbloqueado = 0 WHERE Nivel >= 2 AND Elemento <> 'Neutro'");
+                db.Execute("UPDATE Magias SET Desbloqueado = 1 WHERE Nivel = 1 OR Elemento = 'Neutro'");
                 Debug.Log("[FloorManager] Magias resetadas para o estado inicial.");
             }
             catch (System.Exception e)

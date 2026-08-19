@@ -48,6 +48,16 @@ namespace QueryQuest.UI
         private FragmentoData _selecionado;
         private int _nivelDica;
 
+        /// <summary>Botões da lista, para destacar o escolhido sem remontar tudo.</summary>
+        private readonly List<(FragmentoData frag, Button btn, TextMeshProUGUI label, string texto)> _itens
+            = new List<(FragmentoData, Button, TextMeshProUGUI, string)>();
+
+        /// <summary>
+        /// Os que caíram DESTE golem. O inventário pode ter sobras de andares
+        /// anteriores, e o jogador precisa saber quais são as novidades.
+        /// </summary>
+        private readonly HashSet<int> _idsCaidos = new HashSet<int>();
+
         // ─────────────────────────────────────────────────────────────────────
         // CONSTRUÇÃO
         // ─────────────────────────────────────────────────────────────────────
@@ -130,13 +140,24 @@ namespace QueryQuest.UI
 
         private void AbrirFase(List<FragmentoData> caidos)
         {
-            if (_titulo != null)
-                _titulo.text = caidos != null && caidos.Count == 1
-                    ? $"O GOLEM DEIXOU: {caidos[0].Nome.ToUpper()}"
-                    : "O GOLEM DEIXOU SUAS ESSENCIAS";
+            _idsCaidos.Clear();
+            if (caidos != null)
+                foreach (var f in caidos) _idsCaidos.Add(f.FragmentoID);
 
-            _resultadoTxt.text = "Escolha um fragmento e escreva a consulta para absorve-lo.\n" +
-                                 $"<size=92%>Absorver custa {CustoMana} de mana; cada DICA custa {CustoDica}.</size>";
+            int quantos = _idsCaidos.Count;
+
+            if (_titulo != null)
+                _titulo.text = quantos == 1
+                    ? $"O GOLEM DEIXOU: {caidos[0].Nome.ToUpper()}"
+                    : $"O GOLEM DEIXOU {quantos} ESSENCIAS";
+
+            // A escolha é do jogador: absorver um, absorver todos, ou nenhum.
+            _resultadoTxt.text =
+                (quantos > 1
+                    ? $"<b>Caíram {quantos} fragmentos.</b> Clique em um para escolhê-lo e escreva a consulta.\n"
+                    : "Clique no fragmento para escolhê-lo e escreva a consulta.\n") +
+                $"<size=92%>Cada absorção custa {CustoMana} de mana e cada DICA custa {CustoDica}. " +
+                "Você pode absorver quantos quiser — os que sobrarem ficam guardados.</size>";
             _resultadoTxt.color = Ink;
             Abrir();
         }
@@ -183,6 +204,7 @@ namespace QueryQuest.UI
         private void Refresh()
         {
             foreach (Transform child in _lista) Destroy(child.gameObject);
+            _itens.Clear();
 
             var fragmentos = InventarioFragmento.Instance?.ObterTodos() ?? new List<FragmentoData>();
             if (fragmentos.Count == 0)
@@ -194,20 +216,39 @@ namespace QueryQuest.UI
                 return;
             }
 
+            // Os que caíram agora vêm primeiro: são a decisão do momento.
+            fragmentos.Sort((a, b) =>
+            {
+                bool na = _idsCaidos.Contains(a.FragmentoID);
+                bool nb = _idsCaidos.Contains(b.FragmentoID);
+                if (na != nb) return nb.CompareTo(na);
+                int r = b.Raridade.CompareTo(a.Raridade);
+                return r != 0 ? r : string.Compare(a.Nome, b.Nome, System.StringComparison.Ordinal);
+            });
+
             foreach (var frag in fragmentos)
             {
                 var f = frag;
                 int qtd = InventarioFragmento.Instance.Quantidade(f.FragmentoID);
-                string rotulo = $"{f.Nome}  R{f.Raridade}" + (qtd > 1 ? $" x{qtd}" : "");
 
-                var btn = Botao(_lista, rotulo, 0f, 0f, 1f, 1f, () => Selecionar(f), 14f);
+                // O rótulo mostra o ELEMENTO porque é ele que decide a recompensa:
+                // sem isso a escolha entre dois fragmentos seria às cegas.
+                string texto = $"{f.Nome}  <size=88%>[{f.Elemento}] R{f.Raridade}"
+                             + (qtd > 1 ? $" x{qtd}" : "") + "</size>";
+                if (_idsCaidos.Contains(f.FragmentoID)) texto = "<b>NOVO</b>  " + texto;
+
+                var btn = Botao(_lista, texto, 0f, 0f, 1f, 1f, () => Selecionar(f), 13f);
                 var le = btn.gameObject.AddComponent<LayoutElement>();
                 le.minHeight = le.preferredHeight = 34f;
+
+                var label = btn.GetComponentInChildren<TextMeshProUGUI>(true);
+                _itens.Add((f, btn, label, texto));
             }
 
             if (_selecionado != null && InventarioFragmento.Instance.Quantidade(_selecionado.FragmentoID) <= 0)
                 _selecionado = null;
 
+            AtualizarDestaque();
             AtualizarSelecionado();
         }
 
@@ -216,7 +257,33 @@ namespace QueryQuest.UI
             _selecionado = frag;
             _nivelDica = 0;
             _dicaTxt.text = "";
+            _input.text = "";
+            AtualizarDestaque();
             AtualizarSelecionado();
+        }
+
+        /// <summary>
+        /// Deixa visível QUAL fragmento está escolhido. Sem isto a seleção só
+        /// aparecia no painel lateral, e a lista não dava retorno nenhum ao clique.
+        /// </summary>
+        private void AtualizarDestaque()
+        {
+            foreach (var (frag, btn, label, texto) in _itens)
+            {
+                if (btn == null) continue;
+                bool escolhido = _selecionado != null && _selecionado.FragmentoID == frag.FragmentoID;
+
+                var cores = btn.colors;
+                cores.normalColor   = escolhido ? Color.white : new Color(0.74f, 0.70f, 0.63f);
+                cores.selectedColor = cores.normalColor;
+                btn.colors = cores;
+
+                if (label != null)
+                {
+                    label.text = escolhido ? "<b>> </b>" + texto : texto;
+                    label.color = escolhido ? Color.white : new Color(0.88f, 0.85f, 0.79f);
+                }
+            }
         }
 
         private void AtualizarSelecionado()
@@ -229,11 +296,37 @@ namespace QueryQuest.UI
                 return;
             }
 
+            // Mostrar a recompensa ANTES de absorver é o que torna a escolha
+            // entre dois fragmentos uma decisão, e não um chute.
+            var (magia, jaTinha) = MagiaConcedida(_selecionado.Elemento);
+            string premio = magia == null
+                ? "<i>nenhuma magia de nível 2 para este elemento</i>"
+                : jaTinha
+                    ? $"<b>{magia}</b> <size=88%>(você já domina)</size>"
+                    : $"<b>{magia}</b>";
+
             _selecionadoTxt.text =
                 $"<b>{_selecionado.Nome}</b>\n" +
                 $"Elemento: {_selecionado.Elemento}\n" +
                 $"FragmentoID: <b>{_selecionado.FragmentoID}</b>\n" +
-                $"<size=90%><i>{_selecionado.Descricao}</i></size>";
+                $"<size=92%>Concede: {premio}</size>\n" +
+                $"<size=88%><i>{_selecionado.Descricao}</i></size>";
+        }
+
+        /// <summary>
+        /// Qual magia este elemento concederia, e se o jogador já a possui.
+        /// Só consulta — quem desbloqueia é DesbloquearMagiaNivel2.
+        /// </summary>
+        private static (string nome, bool jaTinha) MagiaConcedida(string elemento)
+        {
+            var db = DatabaseManager.Instance?.DB;
+            if (db == null || string.IsNullOrEmpty(elemento)) return (null, false);
+
+            var magias = db.Query<SpellData>(
+                "SELECT * FROM Magias WHERE Elemento = ? AND Nivel = 2", elemento);
+            if (magias == null || magias.Count == 0) return (null, false);
+
+            return (magias[0].Nome, magias[0].Desbloqueado == 1);
         }
 
         // ─────────────────────────────────────────────────────────────────────

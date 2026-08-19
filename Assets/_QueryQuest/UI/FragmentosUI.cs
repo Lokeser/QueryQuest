@@ -26,6 +26,14 @@ namespace QueryQuest.UI
     {
         public const int CustoMana = 20;
 
+        /// <summary>Cada degrau de dica cobra mana — a ajuda tem preço.</summary>
+        public const int CustoDica = 10;
+
+        // Limites do pergaminho dentro da moldura hud_painel (medidos na arte:
+        // o bege vai de x 0,147 a 0,906 e de y 0,115 a 0,812), com folga.
+        private const float SafeX0 = 0.168f;
+        private const float SafeX1 = 0.886f;
+
         private static readonly Color Ink     = new Color(0.24f, 0.15f, 0.06f);
         private static readonly Color Realce  = new Color(0.42f, 0.20f, 0.04f);
         private static readonly Color Erro    = new Color(0.60f, 0.12f, 0.08f);
@@ -67,7 +75,7 @@ namespace QueryQuest.UI
             var raiz = (RectTransform)transform;
             raiz.anchorMin = raiz.anchorMax = new Vector2(0.5f, 0.5f);
             raiz.pivot = new Vector2(0.5f, 0.5f);
-            raiz.sizeDelta = new Vector2(1020f, 660f);
+            raiz.sizeDelta = new Vector2(1120f, 700f);
             raiz.anchoredPosition = Vector2.zero;
 
             var fundo = gameObject.AddComponent<Image>();
@@ -75,43 +83,45 @@ namespace QueryQuest.UI
             if (moldura != null) UiFrame.Apply(fundo, moldura);
             else fundo.color = new Color(0.96f, 0.90f, 0.74f);
 
-            _titulo = Texto(raiz, "Titulo", "O GOLEM DEIXOU SUAS ESSENCIAS", 24f, Realce,
-                            0.06f, 0.05f, 0.94f, 0.12f);
+            // Todo o conteúdo fica dentro do pergaminho: usar as bordas do painel
+            // como referência colocava o título e os botões sob o entalhe dourado.
+            _titulo = Texto(raiz, "Titulo", "O GOLEM DEIXOU SUAS ESSENCIAS", 22f, Realce,
+                            SafeX0, 0.140f, SafeX1, 0.208f);
 
             // ── Coluna esquerda: os fragmentos que caíram ──
-            Texto(raiz, "LabelLista", "Fragmentos", 17f, Ink, 0.06f, 0.14f, 0.36f, 0.19f);
+            Texto(raiz, "LabelLista", "Fragmentos", 16f, Ink, SafeX0, 0.226f, 0.400f, 0.268f);
 
-            _lista = Caixa(raiz, "Lista", 0.06f, 0.19f, 0.36f, 0.62f);
+            _lista = Caixa(raiz, "Lista", SafeX0, 0.272f, 0.400f, 0.548f);
             var layout = _lista.gameObject.AddComponent<VerticalLayoutGroup>();
             layout.spacing = 6f;
             layout.childForceExpandHeight = false;
             layout.childControlHeight = true;
             layout.childControlWidth = true;
 
-            _selecionadoTxt = Texto(raiz, "Selecionado", "", 15f, Ink, 0.06f, 0.63f, 0.36f, 0.82f);
+            _selecionadoTxt = Texto(raiz, "Selecionado", "", 14f, Ink, SafeX0, 0.558f, 0.400f, 0.712f);
             _selecionadoTxt.alignment = TextAlignmentOptions.TopLeft;
 
             // ── Coluna direita: escreva o JOIN ──
             Texto(raiz, "LabelJoin", "Escreva o JOIN que traz o fragmento e quem o largou:",
-                  16f, Realce, 0.39f, 0.14f, 0.94f, 0.20f).alignment = TextAlignmentOptions.Left;
+                  15f, Realce, 0.420f, 0.226f, SafeX1, 0.274f).alignment = TextAlignmentOptions.Left;
 
-            _input = CriarInput(raiz, 0.39f, 0.20f, 0.94f, 0.44f);
+            _input = CriarInput(raiz, 0.420f, 0.280f, SafeX1, 0.452f);
 
-            _dicaTxt = Texto(raiz, "Dica", "", 15f, new Color(0.40f, 0.30f, 0.14f),
-                             0.39f, 0.45f, 0.94f, 0.66f);
+            _dicaTxt = Texto(raiz, "Dica", "", 14f, new Color(0.40f, 0.30f, 0.14f),
+                             0.420f, 0.462f, SafeX1, 0.598f);
             _dicaTxt.alignment = TextAlignmentOptions.TopLeft;
 
-            _resultadoTxt = Texto(raiz, "Resultado", "", 15f, Ink, 0.39f, 0.67f, 0.94f, 0.85f);
+            _resultadoTxt = Texto(raiz, "Resultado", "", 14f, Ink, 0.420f, 0.608f, SafeX1, 0.712f);
             _resultadoTxt.alignment = TextAlignmentOptions.TopLeft;
 
-            // ── Botões ──
+            // ── Botões, numa faixa só, toda dentro do pergaminho ──
             // O grimório fica acessível aqui de propósito: é onde estão as
             // tabelas, e daqui o jogador também pode escrever o JOIN pelo
             // terminal de consulta, se preferir.
-            Botao(raiz, "CONTINUAR", 0.06f, 0.87f, 0.26f, 0.95f, Continuar);
-            Botao(raiz, "GRIMÓRIO",  0.28f, 0.87f, 0.46f, 0.95f, AbrirGrimorio);
-            Botao(raiz, "DICA",      0.48f, 0.87f, 0.60f, 0.95f, ProximaDica);
-            Botao(raiz, $"ABSORVER ({CustoMana} mana)", 0.62f, 0.87f, 0.94f, 0.95f, Absorver);
+            Botao(raiz, "CONTINUAR", SafeX0,  0.726f, 0.318f, 0.788f, Continuar, 13f);
+            Botao(raiz, "GRIMÓRIO",  0.330f, 0.726f, 0.462f, 0.788f, AbrirGrimorio, 13f);
+            Botao(raiz, $"DICA ({CustoDica})", 0.474f, 0.726f, 0.606f, 0.788f, ProximaDica, 13f);
+            Botao(raiz, $"ABSORVER ({CustoMana} mana)", 0.618f, 0.726f, SafeX1, 0.788f, Absorver, 13f);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -125,7 +135,8 @@ namespace QueryQuest.UI
                     ? $"O GOLEM DEIXOU: {caidos[0].Nome.ToUpper()}"
                     : "O GOLEM DEIXOU SUAS ESSENCIAS";
 
-            _resultadoTxt.text = "Escolha um fragmento e escreva a consulta para absorve-lo.";
+            _resultadoTxt.text = "Escolha um fragmento e escreva a consulta para absorve-lo.\n" +
+                                 $"<size=92%>Absorver custa {CustoMana} de mana; cada DICA custa {CustoDica}.</size>";
             _resultadoTxt.color = Ink;
             Abrir();
         }
@@ -237,6 +248,20 @@ namespace QueryQuest.UI
                 return;
             }
 
+            // Reexibir a dica que o jogador já pagou não custa de novo; só
+            // avançar de degrau cobra.
+            if (_nivelDica < 3)
+            {
+                var mana = ManaSystem.Instance;
+                if (mana != null && !mana.HasMana(CustoDica))
+                {
+                    _dicaTxt.text = $"<b>Mana insuficiente.</b> Cada dica custa {CustoDica} de mana, " +
+                                    $"e você tem {mana.CurrentMana}.";
+                    return;
+                }
+                mana?.SpendMana(CustoDica);
+            }
+
             _nivelDica = Mathf.Min(_nivelDica + 1, 3);
             int id = _selecionado.FragmentoID;
 
@@ -244,14 +269,14 @@ namespace QueryQuest.UI
             {
                 case 1:
                     _dicaTxt.text =
-                        "<b>Dica 1/3</b> — A informacao esta em DUAS tabelas: <b>Fragmentos</b> " +
+                        $"<b>Dica 1/3</b> <size=88%>(-{CustoDica} mana)</size> — A informacao esta em DUAS tabelas: <b>Fragmentos</b> " +
                         "(o item que caiu) e <b>Inimigos</b> (quem largou). Uma consulta que le " +
                         "as duas de uma vez usa <b>JOIN</b>.";
                     break;
 
                 case 2:
                     _dicaTxt.text =
-                        "<b>Dica 2/3</b> — A ponte entre elas e a coluna <b>InimigoID</b> de " +
+                        $"<b>Dica 2/3</b> <size=88%>(-{CustoDica} mana)</size> — A ponte entre elas e a coluna <b>InimigoID</b> de " +
                         "Fragmentos, que aponta para o <b>Id</b> de Inimigos. E o ON diz isso:\n" +
                         "<i>... JOIN Inimigos i ON f.InimigoID = i.Id</i>\n" +
                         $"Nao esqueca de filtrar so este fragmento: <b>WHERE f.FragmentoID = {id}</b>";
@@ -361,7 +386,7 @@ namespace QueryQuest.UI
         private static (bool ok, string erro) ValidarJoin(string consulta, FragmentoData frag)
         {
             if (string.IsNullOrWhiteSpace(consulta))
-                return (false, "Escreva a consulta no campo acima. Sem ideia? Use o botao DICA.");
+                return (false, $"Escreva a consulta no campo acima. Sem ideia? O botao DICA ajuda por {CustoDica} de mana.");
 
             string s = Regex.Replace(consulta, @"\s+", " ").Trim().ToUpperInvariant();
 

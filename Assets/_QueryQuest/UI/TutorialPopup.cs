@@ -18,6 +18,13 @@ namespace QueryQuest.UI
         private static readonly Color Ink   = new Color(0.24f, 0.15f, 0.06f);
         private static readonly Color Realce = new Color(0.42f, 0.20f, 0.04f);
 
+        /// <summary>
+        /// Limites do pergaminho dentro da moldura hud_painel, com uma folga.
+        /// Medidos na arte: o bege vai de 0,147 a 0,906 na horizontal.
+        /// </summary>
+        private const float SafeX0 = 0.168f;
+        private const float SafeX1 = 0.886f;
+
         private struct Pagina
         {
             public string Titulo;
@@ -77,7 +84,7 @@ namespace QueryQuest.UI
             var raiz = (RectTransform)transform;
             raiz.anchorMin = raiz.anchorMax = new Vector2(0.5f, 0.5f);
             raiz.pivot = new Vector2(0.5f, 0.5f);
-            raiz.sizeDelta = new Vector2(920f, 580f);
+            raiz.sizeDelta = new Vector2(1080f, 660f);
             raiz.anchoredPosition = Vector2.zero;
 
             var fundo = gameObject.AddComponent<Image>();
@@ -85,26 +92,29 @@ namespace QueryQuest.UI
             if (moldura != null) UiFrame.Apply(fundo, moldura);
             else fundo.color = new Color(0.96f, 0.90f, 0.74f);
 
-            // Os tamanhos são os de ANTES do TextStyler, que ainda aplica +20%.
-            // Com auto-size a página mais longa encolhe até caber em vez de
-            // transbordar a moldura.
-            _titulo = Texto(raiz, "Titulo", "", 19f, Realce, 0.08f, 0.09f, 0.92f, 0.21f);
+            // Tudo aqui dentro respeita a ÁREA BEGE da moldura, e não o retângulo
+            // do painel. A hud_painel é 9-slice com borda de 279x221px sobre uma
+            // arte de 996x790: o pergaminho começa em x 0,147 e termina em 0,906,
+            // e verticalmente vai de 0,115 a 0,812. Usar as bordas do painel como
+            // referência jogava o título por baixo do entalhe dourado.
+            // Os tamanhos de fonte são os de ANTES do TextStyler, que aplica +20%.
+            _titulo = Texto(raiz, "Titulo", "", 20f, Realce, SafeX0, 0.140f, SafeX1, 0.245f);
             _titulo.enableAutoSizing = true;
-            _titulo.fontSizeMin = 11f;
-            _titulo.fontSizeMax = 19f;
+            _titulo.fontSizeMin = 12f;
+            _titulo.fontSizeMax = 20f;
 
-            _corpo = Texto(raiz, "Corpo", "", 14f, Ink, 0.09f, 0.24f, 0.91f, 0.75f);
+            _corpo = Texto(raiz, "Corpo", "", 17f, Ink, SafeX0 + 0.02f, 0.280f, SafeX1 - 0.018f, 0.655f);
             _corpo.alignment = TextAlignmentOptions.TopLeft;
-            _corpo.lineSpacing = 4f;
+            _corpo.lineSpacing = 6f;
             _corpo.enableAutoSizing = true;
-            _corpo.fontSizeMin = 9f;
-            _corpo.fontSizeMax = 14f;
+            _corpo.fontSizeMin = 11f;
+            _corpo.fontSizeMax = 17f;
 
-            _contador = Texto(raiz, "Contador", "", 12f, new Color(0.45f, 0.34f, 0.20f),
-                              0.40f, 0.79f, 0.60f, 0.87f);
+            _contador = Texto(raiz, "Contador", "", 13f, new Color(0.45f, 0.34f, 0.20f),
+                              0.430f, 0.680f, 0.570f, 0.750f);
 
-            _btnAnterior = Botao(raiz, "ANTERIOR", 0.08f, 0.80f, 0.30f, 0.91f, () => Ir(-1));
-            _btnProximo  = Botao(raiz, "PROXIMO",  0.70f, 0.80f, 0.92f, 0.91f, () => Ir(+1));
+            _btnAnterior = Botao(raiz, "ANTERIOR", SafeX0 + 0.005f, 0.668f, 0.375f, 0.778f, () => Ir(-1));
+            _btnProximo  = Botao(raiz, "PROXIMO",  0.680f, 0.668f, SafeX1 - 0.005f, 0.778f, () => Ir(+1));
         }
 
         // ─────────────────────────────────────────────────────────────────────

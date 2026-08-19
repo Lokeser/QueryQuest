@@ -101,6 +101,12 @@ namespace QueryQuest.UI
 
             FaixaDoTipo(botao.transform, item.Type, cor);
 
+            // O CardTitle da cena nasce colado no topo — exatamente onde a faixa
+            // entra. Sem reposicionar, os dois se sobrepõem. As três regiões são
+            // fixadas por fração do cartão para não dependerem do que veio da cena.
+            PorFracao(titulo, 0.08f, 0.545f, 0.92f, 0.760f);
+            PorFracao(desc,   0.08f, 0.070f, 0.92f, 0.525f);
+
             string hex = ColorUtility.ToHtmlStringRGB(Escurecer(cor, 0.55f));
 
             if (titulo != null)
@@ -141,13 +147,14 @@ namespace QueryQuest.UI
                 go.transform.SetAsFirstSibling();
             }
 
+            // Faixa propria no topo do cartao, em fracao — assim ela nunca
+            // colide com o titulo, que fica logo abaixo (ver VestirCartao).
             var rt = (RectTransform)go.transform;
-            rt.anchorMin = new Vector2(0f, 1f);
-            rt.anchorMax = new Vector2(1f, 1f);
-            rt.pivot     = new Vector2(0.5f, 1f);
-            rt.offsetMin = new Vector2(14f, 0f);
-            rt.offsetMax = new Vector2(-14f, -12f);
-            rt.sizeDelta = new Vector2(rt.sizeDelta.x, 26f);
+            rt.anchorMin = new Vector2(0.08f, 0.790f);
+            rt.anchorMax = new Vector2(0.92f, 0.945f);
+            rt.pivot     = new Vector2(0.5f, 0.5f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
 
             var img = go.GetComponent<Image>() ?? go.AddComponent<Image>();
             GrimoireSkin.Vestir(img, cor, Escurecer(cor, 0.6f), 6, 1);
@@ -159,7 +166,7 @@ namespace QueryQuest.UI
             if (rotuloT == null) rotuloGO.transform.SetParent(go.transform, false);
             var rrt = (RectTransform)rotuloGO.transform;
             rrt.anchorMin = Vector2.zero; rrt.anchorMax = Vector2.one;
-            rrt.offsetMin = new Vector2(6f, 2f); rrt.offsetMax = new Vector2(-6f, -2f);
+            rrt.offsetMin = new Vector2(3f, 1f); rrt.offsetMax = new Vector2(-3f, -1f);
 
             var tmp = rotuloGO.GetComponent<TextMeshProUGUI>() ?? rotuloGO.AddComponent<TextMeshProUGUI>();
             tmp.text = NomeDoTipo(tipo);
@@ -169,14 +176,30 @@ namespace QueryQuest.UI
             tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.raycastTarget = false;
             tmp.enableAutoSizing = true;
-            tmp.fontSizeMin = 8f;
+            // Piso baixo de proposito: o rotulo e curto e precisa caber numa
+            // faixa estreita — melhor encolher que transbordar.
+            tmp.fontSizeMin = 5f;
             tmp.fontSizeMax = 13f;
         }
+
+        /// <summary>Posiciona um elemento por fração do cartão.</summary>
+        private static void PorFracao(RectTransform rt, float x0, float y0, float x1, float y1)
+        {
+            if (rt == null) return;
+            rt.anchorMin = new Vector2(x0, y0);
+            rt.anchorMax = new Vector2(x1, y1);
+            rt.pivot     = new Vector2(0.5f, 0.5f);
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
+        }
+
+        private static void PorFracao(TextMeshProUGUI t, float x0, float y0, float x1, float y1)
+            => PorFracao(t != null ? t.rectTransform : null, x0, y0, x1, y1);
 
         private static string NomeDoTipo(RewardType t) => t switch
         {
             RewardType.Armor => "DEFESA",
-            RewardType.Staff => "PODER ELEMENTAL",
+            RewardType.Staff => "ELEMENTO",
             RewardType.Page  => "NOVA MAGIA",
             _ => "RECOMPENSA",
         };

@@ -59,6 +59,21 @@ namespace QueryQuest.UI
 
         private readonly List<GameObject> _buttons = new();
 
+        // Chips na paleta do grimório. As cores do Inspector foram feitas para o
+        // tema roxo antigo e destoam da madeira/ouro; quem manda agora é o skin.
+        private bool _paletaDoGrimorio;
+
+        /// <summary>Veste os chips de sugestão na paleta do grimório.</summary>
+        public void AplicarPaleta(Color fundo, Color texto)
+        {
+            _paletaDoGrimorio = true;
+            buttonColor = fundo;
+            textColor = texto;
+
+            // Os que já estão na tela mudam junto
+            RefreshSuggestions(queryInput != null ? queryInput.text : "");
+        }
+
         // ─────────────────────────────────────────────────────────────────────
         // UNITY
         // ─────────────────────────────────────────────────────────────────────
@@ -294,11 +309,23 @@ namespace QueryQuest.UI
             rt.sizeDelta = new Vector2(80, 30);
 
             var img = go.AddComponent<Image>();
-            img.color = buttonColor;
+            if (_paletaDoGrimorio) GrimoireSkin.Vestir(img, buttonColor, GrimoireSkin.OuroEscuro, 6, 1);
+            else img.color = buttonColor;
 
             var btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
             btn.onClick.AddListener(() => ApplySuggestion(suggestion));
+
+            if (_paletaDoGrimorio)
+            {
+                var cores = btn.colors;
+                cores.normalColor      = Color.white;
+                cores.highlightedColor = new Color(1f, 0.94f, 0.78f);
+                cores.pressedColor     = new Color(0.75f, 0.70f, 0.60f);
+                cores.selectedColor    = Color.white;
+                cores.fadeDuration     = 0.08f;
+                btn.colors = cores;
+            }
 
             // Texto
             var textGO = new GameObject("Text");
@@ -317,6 +344,11 @@ namespace QueryQuest.UI
             tmp.enableAutoSizing = false;
             tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.overflowMode = TextOverflowModes.Overflow;
+
+            // O TextStyler só revisita a cena a cada 0,35s, e os chips são
+            // recriados a cada tecla: sem isto eles apareceriam sem contorno e
+            // ganhariam um piscando depois.
+            if (_paletaDoGrimorio) TextOutline.Aplicar(tmp);
 
             // LayoutElement controla o tamanho do botão dentro do layout group.
             // A largura se adapta ao texto: ~11px por caractere + padding.

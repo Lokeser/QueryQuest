@@ -26,7 +26,13 @@ namespace QueryQuest.UI
 {
     public class HudSkin : MonoBehaviour
     {
-        private static readonly Color Ink = new Color(0.24f, 0.15f, 0.06f);
+        /// <summary>
+        /// A tinta escura da HUD. Pública porque os números das barras de vida e
+        /// mana usam exatamente a mesma cor do nome do inimigo — duas constantes
+        /// iguais em arquivos diferentes acabariam se separando na primeira
+        /// mudança de paleta.
+        /// </summary>
+        public static readonly Color Ink = new Color(0.24f, 0.15f, 0.06f);
 
         /// <summary>Fundo das telas cheias, num marrom próximo ao da HUD.</summary>
         private static readonly Color ScreenTint = new Color(0.10f, 0.06f, 0.03f, 0.90f);
@@ -276,6 +282,11 @@ namespace QueryQuest.UI
                 styler.Ignore(log.ContentRoot);
             }
 
+            // Contorno no grimório inteiro e no cabeçalho do registro (as LINHAS
+            // do registro se contornam sozinhas — ver CombatLogUI.AppendLog).
+            styler.Contornar(Find("GrimoirePanel"));
+            styler.Contornar(Find("CombatLogPanel"));
+
             styler.Restyle();
         }
 
@@ -320,13 +331,26 @@ namespace QueryQuest.UI
 
                     var enemyHP = Child(enemyPanel, "EnemyHPBarBG");
                     var nome    = Child(enemyPanel, "NameText");
-                    SetNormRect(nome,    0.10f,   0.14f,   0.85f,   0.55f);
+                    // O nome desce para perto da barra (antes flutuava no alto do
+                    // pergaminho, com um vão enorme embaixo) e ganha corpo.
+                    SetNormRect(nome,    0.10f,   0.26f,   0.88f,   0.64f);
                     SetNormRect(enemyHP, 0.1002f, 0.6974f, 0.8493f, 0.8974f);
                     SkinBar(enemyHP, "barra_inimigo");
 
                     // O nome fica sobre o pergaminho, então vai de tinta escura
                     var tmp = nome != null ? nome.GetComponent<TextMeshProUGUI>() : null;
-                    if (tmp != null) tmp.color = Ink;
+                    if (tmp != null)
+                    {
+                        tmp.color = Ink;
+                        // Autoajuste em vez de tamanho fixo: "Golem de Fogo" cabe
+                        // folgado no teto, mas nomes longos precisam poder encolher.
+                        // O TextStyler multiplica estes limites por 1,2 depois.
+                        tmp.enableAutoSizing = true;
+                        tmp.fontSizeMin = 12f;
+                        tmp.fontSizeMax = 22f;
+                        tmp.textWrappingMode = TextWrappingModes.NoWrap;
+                        tmp.alignment = TextAlignmentOptions.Center;
+                    }
                 }
             }
 
@@ -798,6 +822,10 @@ namespace QueryQuest.UI
 
             if (pArsenal != null) TabelasUI.Instalar(pArsenal);
             if (pMagias  != null) MagiasUI.Instalar(pMagias);
+
+            // Depois do GrimoireSkin.Aplicar: ele veste botões e campo, e o
+            // layout da aba QUERY é ajustado por cima desse acabamento.
+            if (pQuery != null) QueryPanelSkin.Instalar(pQuery);
 
             GrimoireSkin.RegistrarAba(abaQuery?.GetComponent<Button>(),   pQuery?.gameObject);
             GrimoireSkin.RegistrarAba(abaMagias?.GetComponent<Button>(),  pMagias?.gameObject);

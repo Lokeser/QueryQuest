@@ -56,11 +56,12 @@ namespace QueryQuest.UI
         {
             hpFull = hpLow = manaColor = enemyHPColor = Color.white;
 
-            // Os números sobre as barras de arte: em preto — o branco da cena
-            // some sobre o verde/azul/vermelho claros do pergaminho.
-            if (playerHPText != null)   playerHPText.color = Color.black;
-            if (playerManaText != null) playerManaText.color = Color.black;
-            if (enemyHPText != null)    enemyHPText.color = Color.black;
+            // Os números sobre as barras de arte vão na MESMA tinta do nome do
+            // inimigo (HudSkin.Ink): o preto puro destoava do marrom da HUD, e o
+            // branco da cena sumia sobre o verde/azul/vermelho claros da arte.
+            if (playerHPText != null)   playerHPText.color = HudSkin.Ink;
+            if (playerManaText != null) playerManaText.color = HudSkin.Ink;
+            if (enemyHPText != null)    enemyHPText.color = HudSkin.Ink;
 
             RefreshHealth();
             if (ManaSystem.Instance != null)

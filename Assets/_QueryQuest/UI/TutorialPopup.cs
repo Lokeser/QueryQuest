@@ -98,12 +98,20 @@ namespace QueryQuest.UI
             // e verticalmente vai de 0,115 a 0,812. Usar as bordas do painel como
             // referência jogava o título por baixo do entalhe dourado.
             // Os tamanhos de fonte são os de ANTES do TextStyler, que aplica +20%.
-            _titulo = Texto(raiz, "Titulo", "", 20f, Realce, SafeX0, 0.140f, SafeX1, 0.245f);
+            // O título estava encostado no entalhe dourado do topo, que passa por
+            // cima dele. Desce para dentro do pergaminho e ganha uma faixa mais
+            // alta — cabe fonte maior sem esbarrar na moldura.
+            _titulo = Texto(raiz, "Titulo", "", 26f, Realce, SafeX0, 0.185f, SafeX1, 0.310f);
             _titulo.enableAutoSizing = true;
-            _titulo.fontSizeMin = 12f;
-            _titulo.fontSizeMax = 20f;
+            _titulo.fontSizeMin = 15f;
+            _titulo.fontSizeMax = 26f;
 
-            _corpo = Texto(raiz, "Corpo", "", 17f, Ink, SafeX0 + 0.02f, 0.280f, SafeX1 - 0.018f, 0.655f);
+            // Filete dourado sob o título, separando-o do corpo
+            Filete(raiz, SafeX0 + 0.06f, 0.325f, SafeX1 - 0.06f, 0.332f);
+
+            // O que o título desceu, o corpo recupera embaixo: os botões descem
+            // junto, sem passar do fim do pergaminho (y 0,812 na arte).
+            _corpo = Texto(raiz, "Corpo", "", 17f, Ink, SafeX0 + 0.02f, 0.360f, SafeX1 - 0.018f, 0.685f);
             _corpo.alignment = TextAlignmentOptions.TopLeft;
             _corpo.lineSpacing = 6f;
             _corpo.enableAutoSizing = true;
@@ -111,10 +119,10 @@ namespace QueryQuest.UI
             _corpo.fontSizeMax = 17f;
 
             _contador = Texto(raiz, "Contador", "", 13f, new Color(0.45f, 0.34f, 0.20f),
-                              0.430f, 0.680f, 0.570f, 0.750f);
+                              0.430f, 0.712f, 0.570f, 0.778f);
 
-            _btnAnterior = Botao(raiz, "ANTERIOR", SafeX0 + 0.005f, 0.668f, 0.375f, 0.778f, () => Ir(-1));
-            _btnProximo  = Botao(raiz, "PROXIMO",  0.680f, 0.668f, SafeX1 - 0.005f, 0.778f, () => Ir(+1));
+            _btnAnterior = Botao(raiz, "ANTERIOR", SafeX0 + 0.005f, 0.700f, 0.375f, 0.800f, () => Ir(-1));
+            _btnProximo  = Botao(raiz, "PROXIMO",  0.680f, 0.700f, SafeX1 - 0.005f, 0.800f, () => Ir(+1));
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -165,6 +173,18 @@ namespace QueryQuest.UI
             rt.anchorMax = new Vector2(x1, 1f - yTop0);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>Filete dourado — separa o título do corpo sem pesar na tela.</summary>
+        private static void Filete(Transform pai, float x0, float y0, float x1, float y1)
+        {
+            var go = new GameObject("Filete", typeof(RectTransform));
+            go.transform.SetParent(pai, false);
+            Fracao(go.transform, x0, y0, x1, y1);
+
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.62f, 0.47f, 0.16f, 0.55f);
+            img.raycastTarget = false;
         }
 
         private static TextMeshProUGUI Texto(Transform pai, string nome, string texto, float tamanho,

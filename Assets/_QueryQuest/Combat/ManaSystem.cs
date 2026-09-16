@@ -23,8 +23,17 @@ namespace QueryQuest.Combat
         public int MaxMana => maxMana;
         public int CurrentMana { get; private set; }
 
-        // Custo base de uma magia sem nenhum refinamento (SELECT * FROM Magias)
-        private const int BASE_COST = 45;
+        // Custo base de uma magia sem nenhum refinamento (SELECT * FROM Magias).
+        // Público porque a barra de custo do grimório usa isto como TETO: a barra
+        // nasce cheia neste valor e esvazia conforme a consulta fica específica.
+        public const int BASE_COST = 45;
+
+        // ── Análise (FROM Inimigos) ──────────────────────────────────────────
+        // Caminho de custo diferente: em vez de especificidade, paga-se por
+        // coluna revelada. Fica aqui, e não no CombatManager, para que a barra de
+        // custo e a cobrança de verdade não possam divergir.
+        public const int CUSTO_POR_COLUNA = 8;
+        public const int COLUNAS_DO_INIMIGO = 7; // Nome, Nivel, Elemento, HP, Fraqueza, AtaqueDistancia, FraquezaDistancia
 
         // Descontos por tipo de cláusula (especificar = economizar)
         private const int DISCOUNT_WHERE    = 10; // + (usar WHERE)
@@ -69,7 +78,13 @@ namespace QueryQuest.Combat
         /// Calcula o custo de mana de uma query. Quanto mais específica
         /// (mais cláusulas SQL), menor o custo.
         /// </summary>
-        public int CalculateCost(string rawQuery)
+        public int CalculateCost(string rawQuery) => CustoDaMagia(rawQuery);
+
+        /// <summary>
+        /// Mesma conta, sem depender da instância — a barra do grimório precisa
+        /// prever o custo mesmo fora de combate.
+        /// </summary>
+        public static int CustoDaMagia(string rawQuery)
         {
             if (string.IsNullOrWhiteSpace(rawQuery)) return BASE_COST;
 
@@ -104,6 +119,55 @@ namespace QueryQuest.Combat
                 cost -= DISCOUNT_LIMIT;
 
             return Mathf.Max(MIN_COST, cost);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // PREVISÃO (a barra de custo do grimório)
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>Custo previsto de uma consulta, com o teto para desenhar a barra.</summary>
+        public readonly struct Previsao
+        {
+            public readonly int Custo;
+            public readonly int Teto;
+            public readonly bool EhAnalise;
+
+            public Previsao(int custo, int teto, bool ehAnalise)
+            {
+                Custo = custo;
+                Teto = Mathf.Max(1, teto);
+                EhAnalise = ehAnalise;
+            }
+
+            /// <summary>Quanto da barra fica cheia: 1 = custo máximo, perto de 0 = consulta afiada.</summary>
+            public float Fracao => Mathf.Clamp01((float)Custo / Teto);
+        }
+
+        /// <summary>Consulta à tabela Inimigos = análise, e a análise cobra por coluna.</summary>
+        public static bool EhAnalise(string rawQuery) =>
+            !string.IsNullOrEmpty(rawQuery) &&
+            Regex.IsMatch(rawQuery, @"FROM\s+Inimigos", RegexOptions.IgnoreCase);
+
+        /// <summary>Quantas colunas o SELECT pede ("*" = todas as do inimigo).</summary>
+        public static int ColunasPedidas(string rawQuery)
+        {
+            var m = Regex.Match(rawQuery ?? "", @"SELECT\s+(.+?)\s+FROM", RegexOptions.IgnoreCase);
+            string cols = m.Success ? m.Groups[1].Value.Trim() : "*";
+            return cols == "*" ? COLUNAS_DO_INIMIGO : cols.Split(',').Length;
+        }
+
+        /// <summary>
+        /// O que a consulta vai custar se for executada agora. Cobre os dois
+        /// caminhos do combate: magia (custo por especificidade) e análise
+        /// (custo por coluna revelada).
+        /// </summary>
+        public static Previsao Prever(string rawQuery)
+        {
+            if (EhAnalise(rawQuery))
+                return new Previsao(ColunasPedidas(rawQuery) * CUSTO_POR_COLUNA,
+                                    COLUNAS_DO_INIMIGO * CUSTO_POR_COLUNA, true);
+
+            return new Previsao(CustoDaMagia(rawQuery), BASE_COST, false);
         }
 
         /// <summary>Gera um texto explicando o custo (para o log educacional).</summary>

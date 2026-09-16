@@ -259,16 +259,10 @@ namespace QueryQuest.Combat
             string colsPart = match.Success ? match.Groups[1].Value.Trim() : "*";
 
             // Custo de mana: cada coluna analisada custa mana. SELECT * custa por TODAS.
-            const int COST_PER_COLUMN = 8;
-            const int ALL_COLUMNS = 7; // Nome, Nivel, Elemento, HP, Fraqueza, AtaqueDistancia, FraquezaDistancia
-
-            int columnsAnalyzed;
-            if (colsPart == "*")
-                columnsAnalyzed = ALL_COLUMNS;
-            else
-                columnsAnalyzed = colsPart.Split(',').Length;
-
-            int manaCost = columnsAnalyzed * COST_PER_COLUMN;
+            // As constantes moram no ManaSystem porque a barra de custo do grimório
+            // prevê este mesmo valor — duplicá-las aqui deixaria a barra mentir.
+            int columnsAnalyzed = ManaSystem.ColunasPedidas(rawQuery);
+            int manaCost = columnsAnalyzed * ManaSystem.CUSTO_POR_COLUNA;
 
             if (ManaSystem.Instance != null)
             {

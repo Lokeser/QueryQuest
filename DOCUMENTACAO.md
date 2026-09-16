@@ -1,7 +1,8 @@
 # QueryQuest — Relatório Técnico Completo
 
 Documentação integral do projeto: da proposta acadêmica à implementação, com o
-funcionamento detalhado de cada sistema.
+funcionamento detalhado de cada sistema. Escrita para servir de material de
+estudo para a defesa do TCC — cada seção termina no "porquê", não só no "o quê".
 
 **Autor:** Guilherme Muniz Narciso
 **Orientador:** Fábio dos Santos Gonçalves
@@ -26,8 +27,10 @@ funcionamento detalhado de cada sistema.
 12. [Sistemas de apoio](#12-sistemas-de-apoio)
 13. [Fluxo completo de uma partida](#13-fluxo-completo-de-uma-partida)
 14. [Decisões técnicas e seus porquês](#14-decisões-técnicas-e-seus-porquês)
-15. [Validação](#15-validação)
-16. [Limitações conhecidas](#16-limitações-conhecidas)
+15. [Dois bugs reais e o que ensinam](#15-dois-bugs-reais-e-o-que-ensinam)
+16. [Validação](#16-validação)
+17. [Limitações conhecidas](#17-limitações-conhecidas)
+18. [Perguntas prováveis da banca](#18-perguntas-prováveis-da-banca)
 
 ---
 
@@ -50,8 +53,10 @@ SQLite embarcado, e a magia devolvida pela consulta é a que sai.
 
 > **Importante:** o trabalho é de **desenvolvimento com proposta de avaliação**.
 > A validação empírica com estudantes não foi conduzida. O artigo apresenta um
-> protocolo de avaliação replicável, mas não afirma eficácia comprovada — a
-> distinção é deliberada e está refletida em toda a redação.
+> protocolo de avaliação replicável (pré-teste, pós-teste e questionário Likert),
+> mas não afirma eficácia comprovada — a distinção é deliberada e está refletida
+> em toda a redação. **Não confundir com MEEGA+**: o protocolo do artigo é
+> pré/pós-teste próprio, não o instrumento MEEGA+.
 
 ### Gamificação ou jogo educacional?
 
@@ -86,15 +91,18 @@ resultado, e segue adiante com um modelo mental equivocado.
 
 ### A lacuna
 
-As ferramentas gamificadas de SQL existentes — SQL Island, SQLZOO, Schemaverse,
-SQL Murder Mystery — compartilham uma característica: **avaliam a consulta de
-forma binária**. Ou produz o resultado esperado, ou não produz. Nenhuma delas
-distingue *uma consulta que apenas funciona* de *uma consulta bem formulada*.
+As ferramentas gamificadas de SQL existentes — SQL Island (Schildgen, 2014),
+SQLZOO, Schemaverse, SQL Murder Mystery — compartilham uma característica:
+**avaliam a consulta de forma binária**. Ou produz o resultado esperado, ou não
+produz. Nenhuma delas distingue *uma consulta que apenas funciona* de *uma
+consulta bem formulada*.
 
 O QueryQuest ataca exatamente esse ponto: converte a **precisão lógica** da
 consulta em **consequência mecânica graduada**. `SELECT *` funciona, mas custa
 caro. Uma consulta filtrada com `WHERE`, `AND` e `LIMIT` produz o mesmo feitiço
-por uma fração do custo. A qualidade da formulação deixa de ser invisível.
+por uma fração do custo. A qualidade da formulação deixa de ser invisível — e,
+desde a última iteração da interface, **deixa de ser abstrata**: uma barra
+visual mostra o custo caindo em tempo real, antes mesmo de executar (seção 8).
 
 ---
 
@@ -144,12 +152,14 @@ nas recompensas entre andares.
 
 ## 4. Arquitetura do projeto
 
-**10.393 linhas de C#** distribuídas em 63 scripts, organizados em quatro camadas:
+**≈ 11.700 linhas de C# próprio**, em **66 scripts**, sem contar o plugin de
+terceiros `SQLite.cs` (a biblioteca sqlite-net, 5.445 linhas). Organizados em
+quatro camadas:
 
 ```
 Assets/_QueryQuest/
 ├── Models/          esquema do banco em classes (SpellData, EnemyData, FragmentoData)
-├── Database/        DatabaseManager, DatabaseSeeder, SQLInterpreter
+├── Database/         DatabaseManager, DatabaseSeeder, SQLInterpreter
 ├── Combat/          regras do jogo (CombatManager, SlotSystem, DamageCalculator…)
 └── UI/              tudo o que o jogador vê (HudSkin, GrimoireUI, TabelasUI…)
 ```
@@ -161,23 +171,27 @@ Assets/_QueryQuest/
 
 O motivo é prático: mudanças de interface viram alterações de código versionáveis
 e revisáveis em diff, em vez de mudanças binárias num arquivo de cena que o Git
-não sabe mesclar. O `HudSkin.cs` (1.060 linhas, o maior arquivo do projeto) é o
+não sabe mesclar. O `HudSkin.cs` (1.088 linhas, o maior arquivo do projeto) é o
 responsável por essa montagem.
 
-### Os dez arquivos principais
+### Os arquivos principais
 
 | Arquivo | Linhas | Responsabilidade |
 |---|---|---|
-| `UI/HudSkin.cs` | 1060 | monta e veste toda a HUD de combate |
-| `Combat/CombatManager.cs` | 585 | máquina de estados do combate |
-| `UI/FragmentosUI.cs` | 558 | tela de absorção com o JOIN escrito pelo jogador |
-| `UI/ArenaSceneView.cs` | 516 | cenário, personagens e efeitos visuais |
-| `Database/SQLInterpreter.cs` | 367 | analisa, valida e executa as consultas |
-| `UI/SmartSuggestions.cs` | 365 | autocompletar do terminal de consultas |
+| `UI/HudSkin.cs` | 1088 | monta e veste toda a HUD de combate |
+| `UI/FragmentosUI.cs` | 759 | tela de absorção com o JOIN escrito pelo jogador |
+| `UI/ArenaSceneView.cs` | 617 | cenário, personagens, caminhada e efeitos visuais |
+| `Combat/CombatManager.cs` | 579 | máquina de estados do combate |
+| `UI/SmartSuggestions.cs` | 397 | autocompletar do terminal de consultas |
+| `UI/QueryPanelSkin.cs` | 381 | layout da aba QUERY e a barra de custo de mana |
+| `Database/Scripts/SQLInterpreter.cs` | 367 | analisa, valida e executa as consultas |
 | `UI/MainMenuUI.cs` | 349 | menu inicial e configurações |
 | `UI/ArenaUI.cs` | 288 | barra de slots e ícones de posição |
 | `UI/GrimoireUI.cs` | 280 | abas e ciclo de vida do grimório |
 | `UI/GrimoireSkin.cs` | 265 | superfícies do grimório geradas em runtime |
+| `UI/CombatLogUI.cs` | 265 | registro de combate |
+| `UI/MagiasUI.cs` | 263 | aba de magias do grimório |
+| `UI/RewardScreenUI.cs` | 256 | tela de recompensa pós-andar |
 
 ---
 
@@ -208,7 +222,9 @@ Mesma lógica, com as três colunas que decidem o combate: `FraquezaElemento`,
 
 20 registros. A coluna **`InimigoID` é chave estrangeira** apontando para
 `Inimigos.Id` — e esse relacionamento não é ornamental: é ele que torna a
-operação `JOIN` **necessária** para progredir.
+operação `JOIN` **necessária** para progredir. Colunas relevantes:
+`FragmentoID` (chave), `InimigoID`, `Nome`, `Elemento`, `Tipo`, `Raridade`
+(1 a 5), `Descricao`, `ValorXP`, `Pista`.
 
 ### `DatabaseManager.cs` — ciclo de vida
 
@@ -226,6 +242,13 @@ No editor o banco é usado direto de `StreamingAssets`, o que facilita inspecion
 com o DB Browser. Na build, `StreamingAssets` é somente leitura, então o arquivo
 é copiado para `persistentDataPath` na primeira execução. Se não houver template,
 o `DatabaseSeeder` cria e popula do zero.
+
+**Detalhe de infraestrutura que já causou um incidente real**: o jogo usa o
+plugin nativo `sqlite3.dll` (x86_64), carregado por `sqlite-net` via P/Invoke.
+Uma versão anterior da DLL era **ARM64**, incompatível com qualquer PC comum —
+o jogo só funcionava por acidente no editor, porque o Mono caía para uma
+`sqlite3.dll` x64 achada no PATH do sistema (a do miniconda). Corrigido
+substituindo a DLL por uma build x86_64 real, verificada por cabeçalho PE.
 
 ---
 
@@ -259,27 +282,16 @@ BuildSafeQuery → SQL com placeholders + args (nunca concatenação)
 
 `SELECT` (colunas ou `*`) · `FROM` · `WHERE` com `AND`/`OR` e operadores
 `=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE` · `ORDER BY` com `ASC`/`DESC` · `LIMIT`
+· `JOIN ... ON` (apenas na tela de absorção de fragmentos, seção 10)
 
-Tabelas permitidas: `Magias` e `Inimigos`. As colunas válidas de cada uma estão
-declaradas explicitamente em `ValidColumns`, o que permite recusar
-`SELECT Vida FROM Magias` com uma mensagem específica em vez de um erro genérico.
+Tabelas permitidas no combate: `Magias` e `Inimigos`. As colunas válidas de
+cada uma estão declaradas explicitamente em `ValidColumns`, o que permite
+recusar `SELECT Vida FROM Magias` com uma mensagem específica em vez de um
+erro genérico.
 
-### Um bug real que o projeto corrigiu
-
-A extração do valor no `WHERE` usava `[^']*`, que quebrava em nomes com
-apóstrofo. `Nome = 'Jato d'Agua'` era lido como `"Jato d"`, e como a expressão
-não estava ancorada, o resto era descartado **em silêncio** — o jogador via a
-consulta "funcionar" e devolver a magia errada.
-
-A correção lê do primeiro ao último apóstrofo, aceita `''` como escape e ancora a
-expressão:
-
-```csharp
-var condMatch = Regex.Match(token, @"^(\w+)\s*(=|!=|>=|<=|>|<|LIKE)\s*(.+)$",
-                            RegexOptions.IgnoreCase);
-```
-
-É, ironicamente, um erro lógico do tipo que o próprio jogo se propõe a ensinar.
+**Ainda não suportado**: `GROUP BY`, `HAVING`, funções de agregação
+(`COUNT`, `SUM`, `AVG`...), `INSERT`/`UPDATE`/`DELETE`/DDL. O jogo é
+estritamente de leitura (`SELECT`). Ver seção 17.
 
 ---
 
@@ -328,18 +340,28 @@ vezes** decidida inteiramente por informação que está no banco.
 
 ### A magia `Analise` — mana por coluna
 
-Mecânica distintiva: `Analise` revela atributos do inimigo, e o **custo é
-proporcional ao número de colunas consultadas**.
+Mecânica distintiva: `Analise` (`FROM Inimigos`) revela atributos do inimigo, e
+o **custo é proporcional ao número de colunas consultadas**. A conta mora em
+`ManaSystem.cs` — não em `CombatManager` — justamente para que a barra de custo
+visual (seção 8) e a cobrança real nunca possam divergir:
 
 ```csharp
-int columnsAnalyzed = (colsPart == "*") ? ALL_COLUMNS : colsPart.Split(',').Length;
-int manaCost = columnsAnalyzed * COST_PER_COLUMN;
+// ManaSystem.cs
+public const int CUSTO_POR_COLUNA   = 8;
+public const int COLUNAS_DO_INIMIGO = 7; // Nome, Nivel, Elemento, HP, Fraqueza, AtaqueDistancia, FraquezaDistancia
+
+public static int ColunasPedidas(string rawQuery)
+{
+    var m = Regex.Match(rawQuery, @"SELECT\s+(.+?)\s+FROM", RegexOptions.IgnoreCase);
+    string cols = m.Success ? m.Groups[1].Value.Trim() : "*";
+    return cols == "*" ? COLUNAS_DO_INIMIGO : cols.Split(',').Length;
+}
 ```
 
-`SELECT * FROM Inimigos` revela tudo, mas cobra por todas as colunas.
-`SELECT FraquezaElemento FROM Inimigos` cobra por uma. **A projeção deixa de ser
-detalhe de estilo e vira decisão econômica** — que é precisamente a intuição que
-se quer construir sobre `SELECT`.
+`SELECT * FROM Inimigos` revela tudo, mas cobra pelas 7 colunas (56 de mana).
+`SELECT FraquezaElemento FROM Inimigos` cobra por uma (8 de mana). **A projeção
+deixa de ser detalhe de estilo e vira decisão econômica** — que é precisamente
+a intuição que se quer construir sobre `SELECT`.
 
 ---
 
@@ -347,8 +369,8 @@ se quer construir sobre `SELECT`.
 
 `ManaSystem.cs` — o mecanismo central da proposta pedagógica.
 
-Toda consulta parte de um **custo base de 45**, do qual são descontados valores
-conforme o refinamento empregado:
+Toda consulta de **magia** (`FROM Magias`) parte de um **custo base de 45**, do
+qual são descontados valores conforme o refinamento empregado:
 
 | Cláusula | Desconto |
 |---|---|
@@ -358,6 +380,9 @@ conforme o refinamento empregado:
 | `LIMIT` | −6 |
 | Cada operador de comparação | −5 |
 | **Piso** | 8 (nunca é grátis) |
+
+Consultas de **análise** (`FROM Inimigos`) seguem a regra à parte descrita na
+seção 7 — mana por coluna revelada, não por especificidade da cláusula.
 
 ### O que isso ensina
 
@@ -373,8 +398,38 @@ As duas consultas lançam o mesmo feitiço. A diferença é que a segunda **cust
 quase quatro vezes menos** — e essa diferença é sentida imediatamente, porque
 mana é o recurso que decide se você sobrevive ao andar.
 
+### A barra de custo (mecânica visual)
+
+Na aba QUERY do grimório, uma **barra de mana** (`QueryPanelSkin.cs` +
+`ManaCostMeter`) mostra o preço da magia **antes** de executar. Ela nasce
+cheia no custo máximo e esvazia em tempo real, a cada tecla digitada:
+
+```csharp
+// ManaCostMeter.Atualizar — chamado a cada onValueChanged do campo de consulta
+var previsao = ManaSystem.Prever(consulta);   // mesma conta que vai cobrar de verdade
+_fill.fillAmount = previsao.Fracao;           // 1,0 = custo máximo, perto de 0 = consulta afiada
+_fill.color = falta ? Vermelho : Azul;        // fica vermelha se a mana não dá
+```
+
+`ManaSystem.Prever()` decide sozinho se a consulta é magia ou análise e aplica
+a conta correspondente — é a **mesma função** usada na cobrança real
+(`CombatManager.SubmitQuery` / `HandleAnalise`), então a barra nunca promete um
+preço e cobra outro. É a conversão da seção 2 ("precisão lógica vira
+consequência mecânica graduada") deixando de ser abstrata: o aluno vê o
+número caindo *enquanto* escreve o `WHERE`, não só depois de errar.
+
+Progressão observada em teste:
+
+| Consulta | Custo | Barra |
+|---|---|---|
+| `SELECT * FROM Magias` | 45 | 100% |
+| `... WHERE Elemento = 'Fogo'` | 35 | 78% |
+| `... AND Nivel = 1` | 27 | 60% |
+| `... ORDER BY DanoBase LIMIT 1` | 9 | 20% |
+
 É esta a conversão que o trabalho propõe: **a precisão lógica, que o SGBD não
-avalia, vira consequência mecânica imediata e perceptível.**
+avalia, vira consequência mecânica imediata e perceptível — e agora também
+visível antes mesmo de agir.**
 
 ---
 
@@ -397,6 +452,13 @@ preciso estar na distância certa. E como cada golem tem uma `FraquezaDistancia`
 distinta, a posição ideal muda a cada andar — informação que, de novo, só existe
 no banco.
 
+**Detalhe visual, sem efeito na regra**: mover não é mais um corte seco. O
+token percorre a distância entre slots (`ArenaSceneView.Caminhar`), e no caso
+do herói o percurso dura exatamente o tempo da animação "andando" (25 quadros
+a 18 fps ≈ 1,39s), lido por `SpriteAnimator.DuracaoDe("andando")` — os passos
+da animação batem com o avanço real, em vez do personagem "patinar" no lugar
+enquanto teleporta para o destino.
+
 ---
 
 ## 10. Progressão: fragmentos, JOIN e roguelite
@@ -404,10 +466,24 @@ no banco.
 ### A cena de absorção
 
 Ao derrotar um golem, ele deixa cair **fragmentos da própria essência**
-(`FragmentDropSystem.cs`, com chances por raridade: 80%, 60%, 40%, 20%, 5%, e
-pelo menos um drop garantido).
+(`FragmentDropSystem.cs`), com chance por raridade:
 
-Para absorver, o jogador precisa **escrever um JOIN**:
+| Raridade | 1 (comum) | 2 | 3 | 4 | 5 (lendário) |
+|---|---|---|---|---|---|
+| Chance | 80% | 60% | 40% | 20% | 5% |
+
+Pelo menos um fragmento é sempre garantido, mesmo que a rolagem falhe em todos.
+
+**Se mais de um fragmento cai, o jogador escolhe qual absorver primeiro** — a
+tela de absorção (`FragmentosUI.cs`) lista todos os fragmentos do inventário
+(inclusive sobras de andares anteriores, com os "novos" deste combate
+marcados), e o jogador clica em um para selecioná-lo antes de escrever o JOIN.
+Isso importa porque cada fragmento pode conceder um elemento diferente — a
+escolha entre dois fragmentos é uma decisão estratégica, não um detalhe de
+inventário, e o painel mostra a magia que seria concedida **antes** de gastar
+mana em absorver.
+
+Para absorver o fragmento selecionado, o jogador precisa **escrever um JOIN**:
 
 ```sql
 SELECT f.Nome, i.Nome AS Inimigo
@@ -416,19 +492,28 @@ JOIN Inimigos i ON f.InimigoID = i.Id
 WHERE f.FragmentoID = 3
 ```
 
-`FragmentosUI.cs` valida a consulta com mensagens específicas para cada erro:
+`FragmentosUI.ValidarJoin` valida a consulta com mensagens específicas para cada erro:
 
 | Erro | Mensagem devolvida |
 |---|---|
+| falta o `SELECT`/`FROM Fragmentos` | "Comece pela tabela do item: FROM Fragmentos" |
 | falta o JOIN | "Falta trazer a outra tabela: JOIN Inimigos" |
 | `ON` ligando colunas erradas | "A ligacao certa e InimigoID (de Fragmentos) = Id (de Inimigos)" |
 | sem filtrar o fragmento | "Filtre o fragmento escolhido: WHERE f.FragmentoID = N" |
 | `;` ou DDL/DML | recusado — só leitura |
 
-Se a consulta passa, **ela é executada de verdade no SQLite** e o resultado real
-aparece antes da recompensa: a magia de nível 2 daquele elemento. Um botão
-**DICA** oferece ajuda em três degraus — o conceito, a coluna que liga as
-tabelas, e por fim o exemplo completo.
+Se a consulta passa, **ela é executada de verdade no SQLite** e o resultado
+real aparece antes da recompensa: a magia de nível 2 daquele elemento.
+Absorver custa **20 de mana** (`CustoMana`).
+
+Um botão **DICA** oferece ajuda em três degraus, e **cada degrau custa 10 de
+mana** (`CustoDica`) — reexibir uma dica já paga é grátis; só avançar de degrau
+cobra. Isso transforma a ajuda num recurso administrado, e não numa muleta
+gratuita:
+
+1. *(-10 mana)* aponta que a informação está em **duas tabelas**
+2. *(-10 mana)* revela a coluna-ponte (`InimigoID` → `Id`) e o `WHERE` exato
+3. *(grátis)* exemplo completo da consulta
 
 **O domínio de `JOIN` é condição de progressão, não conteúdo opcional.**
 
@@ -438,8 +523,17 @@ tabelas, e por fim o exemplo completo.
 
 - derrota → `RestartRun()` zera atributos, limpa fragmentos e re-tranca as magias
   elementais de nível ≥ 2
-- entre andares, `RewardGenerator` sorteia **3 recompensas** e o jogador escolhe 1
-  (Armadura, Cajado elemental ou Página de magia)
+- entre andares, `RewardGenerator` sorteia **3 recompensas** e o jogador escolhe 1:
+
+  | Tipo | Efeito mecânico |
+  |---|---|
+  | Armadura (`Armor`) | −12% de dano recebido |
+  | Cajado elemental (`Staff`) | +25% de dano com o elemento associado |
+  | Página de magia (`Page`) | desbloqueia uma magia específica |
+
+  A tela de recompensa separa visualmente o **efeito mecânico** (o número que
+  importa) da descrição narrativa, para que a escolha seja informada.
+
 - vencidos os 5 andares, `StartInfiniteMode()` recomeça com HP escalado
   (`× (1 + 0,6 × volta)`) preservando a build
 
@@ -477,15 +571,21 @@ vestida**, porque o atributo já teria disparado na cena anterior.
 
 ### Posicionamento por fração da arte
 
-As barras de vida, os slots e os botões não usam coordenadas em pixels: usam
-**frações medidas na própria imagem**. Exemplo real, medido nos pixels da arte:
+As barras de vida, os slots, os botões e (mais recentemente) toda a aba QUERY
+e a tela de absorção de fragmentos não usam coordenadas em pixels: usam
+**frações medidas na própria imagem/painel**. Exemplo real, medido nos pixels
+da arte:
 
 ```csharp
 private static readonly Vector4 SlotVoltar = new Vector4(0.1886f, 0.3377f, 0.6755f, 0.8929f);
 ```
 
 Isso garante que os controles caiam dentro das caixas desenhadas em qualquer
-resolução, de 1024×768 a 4K, incluindo ultrawide.
+resolução, de 1024×768 a 4K, incluindo ultrawide. Onde o conteúdo é variável
+(nome/descrição de fragmentos vindos do banco, texto de dicas que muda de
+tamanho a cada degrau), a posição por fração é combinada com **autoajuste de
+fonte** (`TextMeshProUGUI.enableAutoSizing`), que encolhe o texto até caber em
+vez de depender do cálculo estar certo.
 
 ### A barra inferior que nunca estica
 
@@ -508,18 +608,28 @@ tamanho. Validado em 10 resoluções, com desvio de proporção de **0,000%**.
 
 `GrimoireUI.cs` + `GrimoireSkin.cs` + três abas:
 
-- **QUERY** — terminal onde a consulta é digitada, com autocompletar
+- **QUERY** (`QueryTerminalUI.cs` + `QueryPanelSkin.cs`) — terminal onde a
+  consulta é digitada, com autocompletar (`SmartSuggestions.cs`) e a **barra de
+  custo de mana** (seção 8) no topo
 - **MAGIAS** (`MagiasUI.cs`) — cartões por elemento, com nível, alcance, dano e
   estado de desbloqueio
 - **TABELAS** (`TabelasUI.cs`) — a documentação do banco
 
-As superfícies do grimório são **geradas em runtime** — retângulos de cantos
-arredondados com borda dourada, em 9-slice — porque as artes da HUD são banners
-largos com ornamento nas pontas, que deformariam num painel alto e estreito.
+As superfícies do grimório (fundo, cabeçalho, abas, cartões) são **geradas em
+runtime** por `GrimoireSkin.cs` — retângulos de cantos arredondados com borda
+dourada, em 9-slice — porque as artes da HUD são banners largos com ornamento
+nas pontas, que deformariam num painel alto e estreito.
 
 O grimório tem `Canvas` próprio com `overrideSorting` (ordem 500) e
-`GraphicRaycaster`, o que o coloca acima de toda a HUD, e é arrastável pelo
-cabeçalho.
+`GraphicRaycaster`, o que o coloca acima de toda a HUD (inclusive sobre a tela
+de absorção de fragmentos, que roda fora do turno de jogador), e é arrastável
+pelo cabeçalho.
+
+Todo texto do grimório e do registro de combate recebe **contorno** aplicado
+via material compartilhado (`TextOutline.cs`) — a cor do contorno é escolhida
+pelo tom do texto (contorno claro sobre tinta escura, escuro sobre texto
+claro), para o texto se destacar do pergaminho sem custar um material por
+linha de log.
 
 ### A documentação que não pode mentir
 
@@ -542,9 +652,12 @@ do jogo — o que importa num material que o aluno consulta enquanto joga.
 | **Espírito da lua** | `SpiritCompanion.cs` | monta 3 dicas por combate sobre a fraqueza do golem; clicar na lua cicla entre elas. As dicas são **leves** — apontam a direção, nunca entregam o dado cru |
 | **Tutorial** | `TutorialPopup.cs` | 3 páginas com o essencial, reabríveis pelo botão AJUDA |
 | **Log de combate** | `CombatLogUI.cs` | registro rolável com o detalhamento de cada cálculo de dano |
-| **Autocompletar** | `SmartSuggestions.cs` | sugere tabelas, colunas e cláusulas enquanto o jogador digita |
-| **Animação** | `SpriteAnimator.cs` + libraries | 5 poses do protagonista, 4 de cada golem, com `flipX` por animação |
+| **Autocompletar** | `SmartSuggestions.cs` | sugere tabelas, colunas e cláusulas enquanto o jogador digita, em chips clicáveis que se inserem no campo |
+| **Barra de custo** | `QueryPanelSkin.cs` (`ManaCostMeter`) | mostra o preço da magia/análise em tempo real, antes de executar (seção 8) |
+| **Animação** | `SpriteAnimator.cs` + libraries | 5 poses do protagonista (idle, andando, ataque, dano, grimório), 4 de cada golem, com `flipX` por animação e duração exposta via `DuracaoDe()` |
+| **Caminhada** | `ArenaSceneView.cs` | desliza o token entre slots em vez de teletransportar; a duração casa com a animação de andar |
 | **VFX** | `SpellVFXPlayer.cs` | projétil e explosão recoloridos por elemento e escalados por nível (0,75× / 1,2× / 1,8×) |
+| **Contorno de texto** | `TextOutline.cs` | contorno por material compartilhado, para legibilidade sobre pergaminho/madeira sem custo por linha |
 | **Sessão** | `GameSession.cs` | guarda o andar para o "Continuar" do menu |
 
 ---
@@ -561,23 +674,27 @@ do jogo — o que importa num material que o aluno consulta enquanto joga.
 5.  Abre o grimório (aba TABELAS para consultar o esquema)
         ↓
 6.  SELECT FraquezaElemento FROM Inimigos     ← descobre: Agua
-        · custo proporcional às colunas pedidas
+        · custo proporcional às colunas pedidas (mostrado na barra)
         ↓
 7.  SELECT * FROM Magias WHERE Elemento = 'Agua' AND Distancia = 'LONGO'
+        · a barra de custo esvazia enquanto o WHERE é digitado
         · a consulta filtrada custa menos
         · a magia devolvida é lançada
         ↓
 8.  Dano = DanoBase × 1,5 (elemental) × eficiência de distância
         ↓
-9.  Movimenta-se (recuar/manter/avançar) e clica ENCERRAR TURNO
+9.  Movimenta-se (recuar/manter/avançar) — o herói CAMINHA até o slot,
+    sem teleporte — e clica ENCERRAR TURNO
         · 1 magia + 1 movimento por turno
         ↓
 10. Turno do inimigo → repete até alguém cair
         ↓
-11. Vitória → cena de absorção: escreve o JOIN
+11. Vitória → cena de absorção: escolhe o fragmento (se caiu mais de um)
+    e escreve o JOIN
         · acerta → magia de nível 2 daquele elemento
+        · cada dica custa 10 de mana; absorver custa 20
         ↓
-12. Tela de recompensa: escolhe 1 entre 3
+12. Tela de recompensa: escolhe 1 entre 3 (Armadura / Cajado / Página)
         ↓
 13. ANDAR 2 … até o 5
         ↓
@@ -620,25 +737,97 @@ uma magia e um movimento por turno.
 Mudanças de interface viram diffs revisáveis em vez de alterações binárias em
 arquivos de cena que o Git não mescla.
 
+### A mesma função calcula e cobra
+
+O custo mostrado na barra de mana e o custo cobrado na execução vêm da **mesma
+chamada** (`ManaSystem.Prever` / `CalculateCost`). Foi deliberado: duas
+implementações da mesma regra sempre divergem na primeira mudança — e aqui a
+regra *é* o conteúdo pedagógico, então divergir seria ensinar errado.
+
 ---
 
-## 15. Validação
+## 15. Dois bugs reais e o que ensinam
+
+Vale conhecer os dois de cor: são bons exemplos concretos de rigor técnico para
+citar na defesa, e o primeiro é ironicamente do **mesmo tipo de erro** que o
+jogo se propõe a ensinar.
+
+### O apóstrofo silencioso (`SQLInterpreter.cs`)
+
+A extração do valor no `WHERE` usava `[^']*`, que quebrava em nomes com
+apóstrofo. `Nome = 'Jato d'Agua'` era lido como `"Jato d"`, e como a expressão
+não estava ancorada, o resto era descartado **em silêncio** — o jogador via a
+consulta "funcionar" e devolver a magia errada.
+
+A correção lê do primeiro ao último apóstrofo e ancora a expressão:
+
+```csharp
+var condMatch = Regex.Match(token, @"^(\w+)\s*(=|!=|>=|<=|>|<|LIKE)\s*(.+)$",
+                            RegexOptions.IgnoreCase);
+```
+
+É, ironicamente, um **erro lógico** do tipo que o próprio jogo se propõe a
+ensinar: executou sem alerta e devolveu resultado errado.
+
+### A animação que corria mais rápido que o cronômetro (`SpriteAnimator.cs`)
+
+Ao sincronizar a caminhada do herói com a distância percorrida na arena (seção
+9), a animação usava `WaitForSeconds(1f / fps)` por quadro. O problema: o
+Unity só retoma a corrotina no **próximo** quadro *depois* do prazo vencer —
+a 60 fps, cada quadro de animação de 1/18s (≈ 0,0556s) na prática custava
+1/15s (≈ 0,0667s), porque esperava o próximo tick de 60 fps disponível depois
+do prazo. Ao longo de 25 quadros, o erro acumulado fazia a animação de
+"andando" durar cerca de **20% a mais** do que o valor nominal
+(`quadros / fps`) — exatamente o valor usado para calibrar a duração do
+deslize do personagem pela arena.
+
+Resultado visível: o personagem chegava ao slot de destino e continuava
+"andando no lugar" por uma fração de segundo, porque o deslocamento (calibrado
+pela duração nominal) terminava antes da animação (que rodava mais devagar na
+prática).
+
+Corrigido trocando `WaitForSeconds` por acumulação de tempo por quadro
+(`Time.deltaTime`), pulando frames quando necessário em vez de atrasar:
+
+```csharp
+acumulado += Time.deltaTime;
+while (acumulado >= frameTime)       // while, não if: pula frame em vez de atrasar
+{
+    acumulado -= frameTime;
+    i++;
+    _image.sprite = anim.frames[i];
+}
+```
+
+O paralelo com o bug do apóstrofo é direto: em ambos os casos, **o sistema
+"funcionava" e produzia um resultado sutilmente errado, sem erro nenhum na
+tela** — só perceptível medindo o valor real, não o esperado.
+
+---
+
+## 16. Validação
 
 O projeto foi validado por **execução automatizada em play mode**, via scripts de
 editor descartáveis rodando em batch mode. Não são testes unitários: são
 verificações do jogo rodando de verdade, medindo valores reais em tempo de
-execução.
+execução — nunca lendo/escrevendo uma propriedade interna que contorne o
+caminho real do jogador (ver "lição de método" abaixo).
 
 Exemplos do que foi verificado:
 
-- **Interpretador**: 7 consultas de teste, incluindo nomes com apóstrofo
+- **Interpretador**: consultas de teste, incluindo nomes com apóstrofo
 - **Absorção**: consulta sem JOIN é recusada **sem consumir o fragmento**;
   consulta correta libera a magia e cobra 20 de mana
+- **Barra de custo de mana**: progressão medida em play mode — 45 → 35 → 27 → 9
+  de mana conforme a consulta ganha `WHERE`, `AND`, `ORDER BY` e `LIMIT`,
+  com a fração da barra caindo de 1,000 a 0,200 na mesma proporção
 - **Barra inferior**: proporção idêntica à da arte (desvio 0,000%) em 10
   resoluções, de 1024×768 a 4K e 21:9
 - **Grimório**: hover do livro alterna os sprites; abre em estado `IDLE`;
-  arrasta pelo cabeçalho
-- **Layout**: nenhum par de elementos se sobrepõe na tela de absorção
+  arrasta pelo cabeçalho; 71 textos internos confirmados com contorno aplicado
+- **Layout**: nenhum par de elementos se sobrepõe na tela de absorção nem na
+  aba QUERY; nenhum texto extrapola sua caixa (medido com `textBounds` contra
+  o `rect` local do componente, nunca em coordenadas de tela)
 
 ### Uma lição de método
 
@@ -650,28 +839,126 @@ o `ScrollRect` nunca recebia o evento da roda.
 
 O teste media o efeito, não a causa. A versão corrigida dispara `OnScroll` com um
 `PointerEventData` real e confere, com `RaycastAll`, que o ponteiro alcança o
-componente.
+componente. A mesma disciplina se repetiu depois: medir a barra de mana lendo
+`ManaSystem.Prever()` e o `fillAmount` real do componente, não assumir que a
+fórmula "deveria" bater.
 
 ---
 
-## 16. Limitações conhecidas
+## 17. Limitações conhecidas
 
 | Limitação | Situação |
 |---|---|
-| **Avaliação empírica** | não conduzida. O artigo propõe protocolo replicável, sem afirmar eficácia |
-| **`GROUP BY` e agregação** | não implementados. O jogo cobre `SELECT`, `FROM`, `WHERE`, `AND`/`OR`, operadores, `ORDER BY`, `LIMIT` e `JOIN` |
+| **Avaliação empírica** | não conduzida. O artigo propõe protocolo replicável (pré/pós-teste + Likert), sem afirmar eficácia |
+| **Registro automático de consultas** | não implementado — não existe telemetria de query, timestamp ou veredito persistida em arquivo. Toda consulta e seu resultado aparecem só no log de combate em tela (`CombatLogUI`), que não é salvo |
+| **`GROUP BY`, `HAVING` e agregação** | não implementados. O jogo cobre `SELECT`, `FROM`, `WHERE`, `AND`/`OR`, operadores, `ORDER BY`, `LIMIT` e `JOIN` |
 | **DDL e DML** | fora do escopo — o jogo é somente leitura |
 | **Fases fixas** | os 5 andares são pré-definidos; não há geração procedural |
+| **Modo colaborativo** | ausente — o jogo é estritamente single-player |
 | **Plataforma** | Windows x64 apenas |
 
 ### Trabalhos futuros
 
 1. Aplicar o protocolo de avaliação delineado no artigo
-2. Incorporar mecânica de agregação (`GROUP BY` + `HAVING`) — o desenho já
+2. Implementar registro automático de consultas (query, timestamp, veredito),
+   o que permitiria medir a evolução do erro **durante** a partida, não só no
+   pós-teste
+3. Incorporar mecânica de agregação (`GROUP BY` + `HAVING`) — o desenho já
    existe: fundir fragmentos do mesmo elemento exigiria
    `GROUP BY Elemento HAVING COUNT(*) >= 3` para liberar a magia de nível 3
-3. Investigar retenção em prazo mais longo, com teste posterior ao encerramento
+4. Investigar retenção em prazo mais longo, com teste posterior ao encerramento
    da disciplina
+5. Explorar uso multi-sessão e em grupo (moderadores de eficácia apontados por
+   Wouters et al., 2013, que o formato atual — single-player, sessão única —
+   não exercita)
+
+---
+
+## 18. Perguntas prováveis da banca
+
+Um roteiro rápido de revisão — não são as únicas perguntas possíveis, mas cobrem
+os pontos onde uma resposta vaga costuma custar pontos.
+
+**"Por que não usar direto o SQLite / um SGBD qualquer?"**
+Porque um SGBD executa silenciosamente uma consulta logicamente equivocada e
+não sinaliza a falha (Taipalus et al., 2018). O interpretador próprio conhece
+a *intenção* pedagógica da consulta e devolve uma mensagem específica sobre o
+que está errado — não apenas "0 resultados".
+
+**"O jogo é gamificação ou jogo educacional? Como você sabe a diferença?"**
+Jogo educacional. O teste é: tire o elemento de jogo e veja se sobra a
+atividade original. Numa lista de exercícios gamificada, tirando os pontos a
+lista continua existindo. No QueryQuest, tirar o SQL não deixa nada — a magia
+*é* a consulta.
+
+**"Que erro o jogo mais ataca: sintático, semântico ou lógico?"**
+Lógico. Erro sintático o SQLite já recusa sozinho (mensagem clara). O ponto
+cego que a literatura documenta é o erro lógico: a consulta roda, devolve
+algo, e nada avisa que está errado. É aí que o jogo intervém — convertendo
+precisão lógica em consequência mecânica (dano errado, mana desperdiçada).
+
+**"Como o custo de mana é calculado, exatamente?"**
+Base 45 para toda consulta de magia. Desconta 10 por `WHERE`, 8 por cada
+`AND`/`OR`, 12 por `ORDER BY`, 6 por `LIMIT`, 5 por operador de comparação, com
+piso de 8. Consulta de análise (`FROM Inimigos`) segue regra diferente: paga 8
+por coluna revelada, e `SELECT *` cobra pelas 7 colunas do inimigo.
+
+**"O jogador vê esse custo antes de executar?"**
+Sim — desde a última iteração da interface, uma barra na aba QUERY mostra o
+custo caindo em tempo real conforme a consulta é digitada, usando a mesma
+função (`ManaSystem.Prever`) que depois cobra de verdade.
+
+**"Por que roguelite, e não fases lineares sem penalidade de reinício?"**
+Perder e recomeçar obriga a reformular as mesmas consultas em contextos
+ligeiramente diferentes, com baixo custo emocional (é esperado perder, faz
+parte do formato). Isso corresponde a prática distribuída e prática de
+recuperação — duas das técnicas de estudo com maior evidência de eficácia
+(Dunlosky et al., 2013) — de forma incidental, sem o aluno precisar organizar
+uma rotina de revisão por conta própria.
+
+**"Por que o turno não passa automaticamente ao lançar a magia?"**
+Para dissociar o tempo de *pensar* na consulta do tempo de *reagir* ao
+combate. O jogador pode formular, testar e corrigir sem pressão de turno — só
+o botão ENCERRAR TURNO avança o estado.
+
+**"Como você garante que uma consulta com `'; DROP TABLE` não quebra o jogo?"**
+Duas camadas. Primeiro, `BuildSafeQuery` nunca concatena string — monta SQL
+parametrizado com placeholders, então mesmo um valor malicioso vira só um
+literal de comparação, não código executável. Segundo, na tela de absorção,
+`ValidarJoin` recusa explicitamente `;` e palavras-chave de DDL/DML antes de
+chegar ao banco.
+
+**"O trabalho testou o jogo com alunos de verdade?"**
+Não. É desenvolvimento com proposta de avaliação: o artigo define um
+protocolo replicável (pré-teste, intervenção, pós-teste, questionário Likert),
+mas a aplicação empírica não foi conduzida dentro do escopo deste TCC — fica
+como trabalho futuro, declarado explicitamente como limitação.
+
+**"O jogo registra as consultas dos jogadores para análise?"**
+Não automaticamente — é uma limitação real, não um recurso implementado. O que
+existe é o log de combate em tela, que não é persistido. Registrar
+consulta+timestamp+veredito em arquivo é listado como melhoria futura,
+porque isso permitiria medir a evolução do erro *durante* a sessão de jogo.
+
+**"Qual literatura fundamenta a escolha por consequência mecânica graduada, em vez de feedback binário (certo/errado)?"**
+A lacuna identificada nas ferramentas existentes (SQL Island, SQLZOO,
+Schemaverse, SQL Murder Mystery): todas avaliam a consulta como
+funciona/não-funciona, sem distinguir uma consulta que apenas retorna o
+resultado certo de uma consulta bem formulada. O QueryQuest responde a essa
+lacuna especificamente, não à literatura de SQL education em geral.
+
+**"Por que a UI é montada por código, e não em prefabs no editor?"**
+Prefabs e cenas do Unity são arquivos binários/YAML complexos que o Git não
+mescla bem — dois desenvolvedores mexendo na mesma tela geram conflito
+irrecuperável. Construir a UI por código torna cada mudança de interface um
+diff revisável, como qualquer outra mudança de lógica.
+
+**"Cite um bug real que vocês encontraram e corrigiram, e o que ele ensina sobre o próprio tema do TCC."**
+O da extração de valores com apóstrofo no `WHERE` (seção 15): a regex não
+ancorada cortava `'Jato d'Agua'` em `"Jato d"` silenciosamente, sem erro na
+tela — a consulta "funcionava" e devolvia o resultado errado. É, literalmente,
+um erro lógico do tipo que o próprio SQLInterpreter foi criado para expor ao
+jogador.
 
 ---
 

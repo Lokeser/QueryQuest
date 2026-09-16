@@ -29,6 +29,9 @@ namespace QueryQuest.UI
         /// <summary>Cada degrau de dica cobra mana — a ajuda tem preço.</summary>
         public const int CustoDica = 10;
 
+        /// <summary>Altura de cada fragmento na lista: duas linhas de rótulo.</summary>
+        private const float ItemAltura = 48f;
+
         // Limites do pergaminho dentro da moldura hud_painel (medidos na arte:
         // o bege vai de x 0,147 a 0,906 e de y 0,115 a 0,812), com folga.
         private const float SafeX0 = 0.168f;
@@ -95,34 +98,44 @@ namespace QueryQuest.UI
 
             // Todo o conteúdo fica dentro do pergaminho: usar as bordas do painel
             // como referência colocava o título e os botões sob o entalhe dourado.
+            //
+            // E todo texto daqui é AUTOAJUSTÁVEL. O conteúdo varia demais
+            // (nome e descrição do fragmento vêm do banco, as dicas mudam de
+            // tamanho a cada degrau) para caber por cálculo fixo — com o
+            // autoajuste o TMP encolhe até caber e nada invade a faixa de baixo,
+            // que era o que jogava a descrição por trás dos botões.
             _titulo = Texto(raiz, "Titulo", "O GOLEM DEIXOU SUAS ESSENCIAS", 22f, Realce,
                             SafeX0, 0.140f, SafeX1, 0.208f);
+            Ajustavel(_titulo, 13f, 22f);
 
             // ── Coluna esquerda: os fragmentos que caíram ──
             Texto(raiz, "LabelLista", "Fragmentos", 16f, Ink, SafeX0, 0.226f, 0.400f, 0.268f);
 
-            _lista = Caixa(raiz, "Lista", SafeX0, 0.272f, 0.400f, 0.548f);
-            var layout = _lista.gameObject.AddComponent<VerticalLayoutGroup>();
-            layout.spacing = 6f;
-            layout.childForceExpandHeight = false;
-            layout.childControlHeight = true;
-            layout.childControlWidth = true;
+            // Rolável: o inventário acumula entre andares, e a caixa só mostra
+            // três ou quatro itens — sem rolagem o quinto fragmento ficava
+            // desenhado por baixo do texto de seleção.
+            _lista = ListaRolavel(raiz, SafeX0, 0.272f, 0.400f, 0.502f);
 
-            _selecionadoTxt = Texto(raiz, "Selecionado", "", 14f, Ink, SafeX0, 0.558f, 0.400f, 0.712f);
+            _selecionadoTxt = Texto(raiz, "Selecionado", "", 14f, Ink, SafeX0, 0.514f, 0.400f, 0.714f);
             _selecionadoTxt.alignment = TextAlignmentOptions.TopLeft;
+            Ajustavel(_selecionadoTxt, 9f, 14f);
 
             // ── Coluna direita: escreva o JOIN ──
             Texto(raiz, "LabelJoin", "Escreva o JOIN que traz o fragmento e quem o largou:",
-                  15f, Realce, 0.420f, 0.226f, SafeX1, 0.274f).alignment = TextAlignmentOptions.Left;
+                  15f, Realce, 0.420f, 0.226f, SafeX1, 0.272f).alignment = TextAlignmentOptions.Left;
 
-            _input = CriarInput(raiz, 0.420f, 0.280f, SafeX1, 0.452f);
+            _input = CriarInput(raiz, 0.420f, 0.278f, SafeX1, 0.430f);
 
+            // A dica 3/3 é um exemplo de consulta em cinco linhas — a faixa
+            // antiga (0,462–0,598) não comportava, e ela transbordava para baixo.
             _dicaTxt = Texto(raiz, "Dica", "", 14f, new Color(0.40f, 0.30f, 0.14f),
-                             0.420f, 0.462f, SafeX1, 0.598f);
+                             0.420f, 0.440f, SafeX1, 0.598f);
             _dicaTxt.alignment = TextAlignmentOptions.TopLeft;
+            Ajustavel(_dicaTxt, 9f, 14f);
 
-            _resultadoTxt = Texto(raiz, "Resultado", "", 14f, Ink, 0.420f, 0.608f, SafeX1, 0.712f);
+            _resultadoTxt = Texto(raiz, "Resultado", "", 14f, Ink, 0.420f, 0.608f, SafeX1, 0.714f);
             _resultadoTxt.alignment = TextAlignmentOptions.TopLeft;
+            Ajustavel(_resultadoTxt, 9f, 14f);
 
             // ── Botões, numa faixa só, toda dentro do pergaminho ──
             // O grimório fica acessível aqui de propósito: é onde estão as
@@ -233,13 +246,19 @@ namespace QueryQuest.UI
 
                 // O rótulo mostra o ELEMENTO porque é ele que decide a recompensa:
                 // sem isso a escolha entre dois fragmentos seria às cegas.
-                string texto = $"{f.Nome}  <size=88%>[{f.Elemento}] R{f.Raridade}"
-                             + (qtd > 1 ? $" x{qtd}" : "") + "</size>";
-                if (_idsCaidos.Contains(f.FragmentoID)) texto = "<b>NOVO</b>  " + texto;
+                //
+                // Em DUAS linhas de propósito: numa linha só, "NOVO Essência
+                // Flamejante [Fogo] R4" não cabia na coluna, quebrava sozinho e
+                // vazava para fora da placa do botão.
+                string cabecalho = _idsCaidos.Contains(f.FragmentoID)
+                    ? "<b>NOVO</b>  " + f.Nome
+                    : f.Nome;
+                string detalhe = $"[{f.Elemento}] R{f.Raridade}" + (qtd > 1 ? $"  x{qtd}" : "");
+                string texto = $"{cabecalho}\n<size=84%>{detalhe}</size>";
 
                 var btn = Botao(_lista, texto, 0f, 0f, 1f, 1f, () => Selecionar(f), 13f);
                 var le = btn.gameObject.AddComponent<LayoutElement>();
-                le.minHeight = le.preferredHeight = 34f;
+                le.minHeight = le.preferredHeight = ItemAltura;
 
                 var label = btn.GetComponentInChildren<TextMeshProUGUI>(true);
                 _itens.Add((f, btn, label, texto));
@@ -247,6 +266,10 @@ namespace QueryQuest.UI
 
             if (_selecionado != null && InventarioFragmento.Instance.Quantidade(_selecionado.FragmentoID) <= 0)
                 _selecionado = null;
+
+            // Sem isto a altura do conteúdo só é recalculada no quadro seguinte,
+            // e a lista nasce com a rolagem travada.
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_lista);
 
             AtualizarDestaque();
             AtualizarSelecionado();
@@ -571,13 +594,70 @@ namespace QueryQuest.UI
             rt.offsetMax = new Vector2(-r, -top);
         }
 
-        private static RectTransform Caixa(Transform pai, string nome,
-                                           float x0, float y0, float x1, float y1)
+        /// <summary>
+        /// Liga o autoajuste de fonte com piso e teto. Os valores são os de
+        /// ANTES do TextStyler, que multiplica os dois por 1,2 depois.
+        /// </summary>
+        private static void Ajustavel(TextMeshProUGUI tmp, float minimo, float maximo)
         {
-            var go = new GameObject(nome, typeof(RectTransform));
-            go.transform.SetParent(pai, false);
-            Fracao(go.transform, x0, y0, x1, y1);
-            return (RectTransform)go.transform;
+            if (tmp == null) return;
+            tmp.enableAutoSizing = true;
+            tmp.fontSizeMin = minimo;
+            tmp.fontSizeMax = maximo;
+        }
+
+        /// <summary>
+        /// Caixa de fragmentos com rolagem. Devolve o CONTEÚDO — é nele que o
+        /// Refresh cria e destrói os botões, como antes.
+        /// </summary>
+        private static RectTransform ListaRolavel(Transform pai,
+                                                  float x0, float y0, float x1, float y1)
+        {
+            var scrollGO = new GameObject("Lista", typeof(RectTransform));
+            scrollGO.transform.SetParent(pai, false);
+            Fracao(scrollGO.transform, x0, y0, x1, y1);
+
+            var scroll = scrollGO.AddComponent<ScrollRect>();
+            scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 26f;
+
+            var viewport = new GameObject("Viewport", typeof(RectTransform));
+            viewport.transform.SetParent(scrollGO.transform, false);
+            Esticar(viewport.transform, 0f, 0f, 0f, 0f);
+            viewport.AddComponent<RectMask2D>();
+
+            // O ScrollRect só recebe a roda do mouse se houver um Graphic com
+            // raycastTarget sob o cursor; as placas dos botões não cobrem os
+            // vãos entre elas. Esta imagem invisível cobre a caixa inteira.
+            var captura = viewport.AddComponent<Image>();
+            captura.color = new Color(0f, 0f, 0f, 0f);
+            captura.raycastTarget = true;
+            scroll.viewport = (RectTransform)viewport.transform;
+
+            var conteudoGO = new GameObject("Conteudo", typeof(RectTransform));
+            conteudoGO.transform.SetParent(viewport.transform, false);
+            var conteudo = (RectTransform)conteudoGO.transform;
+            conteudo.anchorMin = new Vector2(0f, 1f);
+            conteudo.anchorMax = new Vector2(1f, 1f);
+            conteudo.pivot = new Vector2(0.5f, 1f);
+            conteudo.offsetMin = Vector2.zero;
+            conteudo.offsetMax = Vector2.zero;
+            scroll.content = conteudo;
+
+            var layout = conteudoGO.AddComponent<VerticalLayoutGroup>();
+            layout.spacing = 6f;
+            layout.padding = new RectOffset(0, 4, 0, 4);
+            layout.childForceExpandHeight = false;
+            layout.childControlHeight = true;
+            layout.childControlWidth = true;
+
+            // O fitter fica no CONTEÚDO, que é a raiz do layout — pô-lo num
+            // filote dele faria os dois brigarem pela mesma altura.
+            conteudoGO.AddComponent<ContentSizeFitter>().verticalFit =
+                ContentSizeFitter.FitMode.PreferredSize;
+
+            return conteudo;
         }
 
         private static TextMeshProUGUI Texto(Transform pai, string nome, string texto, float tamanho,
@@ -670,6 +750,9 @@ namespace QueryQuest.UI
             var label = Texto(go.transform, "Label", rotulo, tamanhoFonte, Color.white, 0f, 0f, 1f, 1f);
             label.rectTransform.offsetMin = new Vector2(8f, 3f);
             label.rectTransform.offsetMax = new Vector2(-8f, -3f);
+            // Rótulo encolhe antes de vazar da placa: os nomes de fragmento vêm
+            // do banco e podem ser bem mais longos que os rótulos fixos.
+            Ajustavel(label, tamanhoFonte * 0.62f, tamanhoFonte);
             return btn;
         }
     }

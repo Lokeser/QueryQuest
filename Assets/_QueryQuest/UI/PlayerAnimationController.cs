@@ -94,8 +94,11 @@ namespace QueryQuest.UI
 
         private void OnPositionsChanged(int playerSlot, int enemySlot)
         {
-            // Detecta movimento do jogador → animação de andar
-            if (_lastPlayerSlot != -1 && playerSlot != _lastPlayerSlot)
+            // Só anda de UM slot por vez. Um salto maior é o reposicionamento do
+            // começo do andar (SlotSystem.ResetPositions), e ali o herói não
+            // caminha — ele já começa na posição. O ArenaSceneView usa o mesmo
+            // critério para decidir se desliza ou se corta seco.
+            if (_lastPlayerSlot != -1 && Mathf.Abs(playerSlot - _lastPlayerSlot) == 1)
                 _animator.PlayOnce(andandoAnim, idleAnim);
 
             _lastPlayerSlot = playerSlot;

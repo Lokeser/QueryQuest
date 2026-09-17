@@ -286,6 +286,9 @@ namespace QueryQuest.UI
             // do registro se contornam sozinhas — ver CombatLogUI.AppendLog).
             styler.Contornar(Find("GrimoirePanel"));
             styler.Contornar(Find("CombatLogPanel"));
+            // E na barra de slots: o número da casa é tinta escura sobre o
+            // marrom da caixa, e sem contorno quase desaparece.
+            styler.Contornar(Find("ArenaUI"));
 
             styler.Restyle();
         }
@@ -436,15 +439,30 @@ namespace QueryQuest.UI
                 var outline = slot.GetComponent<Outline>();
                 if (outline != null) outline.enabled = false;
 
-                // O número vinha no rodapé do slot (25% de baixo) e, com as caixas
-                // altas da arte, ficava largado no pé. Sobe para uma faixa curta.
+                // O número ficava ABAIXO da caixa, na moldura bege, e em azul —
+                // herança do slot antigo, que era um quadrado desenhado por código.
+                // Medido na arte, o miolo marrom da caixa ocupa de 0,189 a 0,786
+                // da altura do slot; o número entra na base desse intervalo, logo
+                // abaixo do ícone (que começa em 0,35), então continua visível
+                // mesmo com o slot ocupado.
                 var label = Child(slot, "SlotLabel");
                 if (label is RectTransform lrt)
                 {
-                    lrt.anchorMin = new Vector2(0f, 0.04f);
-                    lrt.anchorMax = new Vector2(1f, 0.20f);
+                    lrt.anchorMin = new Vector2(0f, 0.20f);
+                    lrt.anchorMax = new Vector2(1f, 0.35f);
                     lrt.offsetMin = Vector2.zero;
                     lrt.offsetMax = Vector2.zero;
+                }
+
+                // Tinta escura da HUD no lugar do azul. O contorno que a torna
+                // legível sobre o marrom da caixa é aplicado pelo TextStyler
+                // (ver ApplyTextStyle): aqui seria desfeito, porque ele troca a
+                // fonte depois e o font asset traz o material dele junto.
+                var numero = label != null ? label.GetComponent<TextMeshProUGUI>() : null;
+                if (numero != null)
+                {
+                    numero.color = Ink;
+                    numero.fontStyle |= FontStyles.Bold;
                 }
 
                 SkinToken(Child(slot, "PlayerToken"), "icone_jogador");

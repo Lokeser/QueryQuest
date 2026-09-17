@@ -15,8 +15,17 @@ namespace QueryQuest.Combat
         private static readonly string[] Elements = { "Fogo", "Agua", "Vento", "Terra", "Raio" };
 
         /// <summary>
-        /// Gera 3 itens aleatórios. Tipos são sorteados independentemente,
-        /// então pode vir 2 armaduras + 1 cajado, por exemplo.
+        /// Gera 3 itens aleatórios, todos DIFERENTES entre si.
+        ///
+        /// Antes o tipo era sorteado a cada vaga sem olhar o que já havia saído,
+        /// e como só existe uma armadura, duas vagas de armadura produziam dois
+        /// cartões idênticos — o mesmo valia para dois cajados do mesmo elemento.
+        /// Agora cada vaga sorteia apenas entre o que ainda tem algo distinto a
+        /// oferecer: a armadura sai da lista depois de escolhida, o cajado sorteia
+        /// entre os elementos ainda livres e a página entre as magias restantes.
+        ///
+        /// A oferta mínima é de 6 itens distintos (1 armadura + 5 cajados), então
+        /// as três vagas sempre são preenchidas.
         /// </summary>
         public static List<RewardItem> Generate(int count = 3)
         {
@@ -40,36 +49,36 @@ namespace QueryQuest.Combat
 
             for (int i = 0; i < count; i++)
             {
-                // Sorteia o tipo. Se não há magias bloqueadas, não oferece página.
-                int maxType = lockedSpells.Count > 0 ? 3 : 2;
-                RewardType type = (RewardType)Random.Range(0, maxType);
+                // O que ainda pode render um item INÉDITO nesta tela
+                var elementosLivres = Elements
+                    .Where(e => !items.Any(it => it.Type == RewardType.Staff && it.Element == e))
+                    .ToList();
 
-                switch (type)
+                var magiasLivres = lockedSpells
+                    .Where(s => !items.Any(it => it.Type == RewardType.Page && it.SpellId == s.Id))
+                    .ToList();
+
+                var tipos = new List<RewardType>();
+                if (!items.Any(it => it.Type == RewardType.Armor)) tipos.Add(RewardType.Armor);
+                if (elementosLivres.Count > 0) tipos.Add(RewardType.Staff);
+                if (magiasLivres.Count > 0) tipos.Add(RewardType.Page);
+
+                // Só aconteceria com a lista de elementos vazia; melhor devolver
+                // menos cartões do que repetir um.
+                if (tipos.Count == 0) break;
+
+                switch (tipos[Random.Range(0, tipos.Count)])
                 {
                     case RewardType.Armor:
                         items.Add(MakeArmor());
                         break;
 
                     case RewardType.Staff:
-                        items.Add(MakeStaff());
+                        items.Add(MakeStaff(elementosLivres[Random.Range(0, elementosLivres.Count)]));
                         break;
 
                     case RewardType.Page:
-                        // Pega uma magia bloqueada aleatória (sem repetir as já escolhidas nesta tela)
-                        var available = lockedSpells
-                            .Where(s => !items.Any(it => it.Type == RewardType.Page && it.SpellId == s.Id))
-                            .ToList();
-
-                        if (available.Count > 0)
-                        {
-                            var spell = available[Random.Range(0, available.Count)];
-                            items.Add(MakePage(spell));
-                        }
-                        else
-                        {
-                            // Fallback: se acabaram as magias, oferece cajado
-                            items.Add(MakeStaff());
-                        }
+                        items.Add(MakePage(magiasLivres[Random.Range(0, magiasLivres.Count)]));
                         break;
                 }
             }
@@ -87,9 +96,9 @@ namespace QueryQuest.Combat
             };
         }
 
-        private static RewardItem MakeStaff()
+        /// <summary>O elemento vem de fora: quem sorteia já descartou os repetidos.</summary>
+        private static RewardItem MakeStaff(string element)
         {
-            string element = Elements[Random.Range(0, Elements.Length)];
             return new RewardItem
             {
                 Type = RewardType.Staff,

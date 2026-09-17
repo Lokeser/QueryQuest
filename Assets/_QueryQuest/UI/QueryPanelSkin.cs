@@ -250,6 +250,11 @@ namespace QueryQuest.UI
             var terminal = t != null ? t.GetComponentInParent<QueryTerminalUI>() : null;
             if (terminal != null) terminal.UsarPaletaPergaminho();
 
+            // As linhas nasciam coladas na borda do pergaminho. Quem afasta é o
+            // próprio terminal: ele é o dono do conteúdo, e procurar o objeto
+            // pelo caminho na hierarquia já falhou uma vez.
+            if (terminal != null) terminal.AjustarMargem();
+
             // Sem um Graphic com raycastTarget sob o cursor o ScrollRect não
             // recebe a roda do mouse — mesmo motivo da aba TABELAS.
             var viewport = t != null ? t.Find("Viewport") : null;

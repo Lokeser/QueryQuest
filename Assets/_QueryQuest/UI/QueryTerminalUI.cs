@@ -111,6 +111,33 @@ namespace QueryQuest.UI
             }
         }
 
+        /// <summary>Respiro entre o texto e a moldura do pergaminho.</summary>
+        private const int Margem = 14;
+
+        /// <summary>
+        /// Afasta as linhas das bordas do painel. A margem vai no layout do
+        /// CONTEÚDO, e não no viewport, para a rolagem continuar percorrendo a
+        /// caixa inteira.
+        /// </summary>
+        public void AjustarMargem()
+        {
+            if (logContent == null) return;
+
+            var coluna = logContent.GetComponent<VerticalLayoutGroup>();
+            if (coluna == null) return;
+
+            coluna.padding = new RectOffset(Margem, Margem, 10, 10);
+            coluna.spacing = Mathf.Max(coluna.spacing, 3f);
+
+            // As linhas já criadas foram medidas na largura antiga
+            foreach (var linha in _logLines)
+            {
+                if (linha == null) continue;
+                var tmp = linha.GetComponent<TextMeshProUGUI>();
+                if (tmp != null) DimensionarLinha(linha, tmp);
+            }
+        }
+
         public void FocusInput()
         {
             queryInputField?.ActivateInputField();
@@ -196,7 +223,9 @@ namespace QueryQuest.UI
             var le = linha.GetComponent<LayoutElement>();
             if (le == null) le = linha.AddComponent<LayoutElement>();
 
-            float largura = logContent.rect.width - 16f;
+            // Desconta a margem dos dois lados, senão a altura é calculada para
+            // uma largura maior que a real e a última linha fica cortada.
+            float largura = logContent.rect.width - Margem * 2 - 4f;
             if (largura < 50f) largura = 300f;
 
             float altura = tmp.GetPreferredValues(tmp.text, largura, 0f).y;

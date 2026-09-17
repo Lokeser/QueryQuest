@@ -167,6 +167,22 @@ namespace QueryQuest.UI
                 return AllColumns().ToList();
             }
 
+            // ORDER BY / LIMIT são testados ANTES do bloco do WHERE de propósito.
+            // Em "WHERE Elemento = 'Fogo' ORDER BY DanoBase", o bloco do WHERE vê
+            // "DanoBase" como última palavra, reconhece a coluna e sugere
+            // operadores de comparação — quando o que cabe ali é DESC/ASC/LIMIT.
+            // Quem termina a consulta manda em quem começou.
+            if (Regex.IsMatch(upperTrim, @"ORDER\s+BY\s+\w+$"))
+                return new List<string> { "DESC", "ASC", "LIMIT" };
+
+            if (Regex.IsMatch(upperTrim, @"\b(DESC|ASC)$"))
+                return new List<string> { "LIMIT" };
+
+            // Depois de LIMIT não havia nada. O jogo é de poucas linhas, então os
+            // valores úteis são poucos e cabem como atalho.
+            if (Regex.IsMatch(upperTrim, @"\bLIMIT$"))
+                return new List<string> { "1", "3", "5" };
+
             // Depois de WHERE, detecta se acabou de digitar uma coluna → sugere operador
             if (upper.Contains("WHERE"))
             {
@@ -209,6 +225,16 @@ namespace QueryQuest.UI
                 }
             }
 
+            // Depois de AND/OR a lista ficava VAZIA: o bloco do WHERE não tinha
+            // regra para o conectivo, e o jogador perdia a pista de que ali entra
+            // outra coluna — justamente onde nasce o AND pendurado.
+            if (Regex.IsMatch(upperTrim, @"\b(AND|OR)$"))
+            {
+                if (activeTable != null && Columns.ContainsKey(activeTable))
+                    return Columns[activeTable].ToList();
+                return AllColumns().ToList();
+            }
+
             // Depois de ORDER BY → sugere colunas, depois ASC/DESC
             if (Regex.IsMatch(upperTrim, @"ORDER\s+BY$"))
             {
@@ -216,11 +242,6 @@ namespace QueryQuest.UI
                     return Columns[activeTable].ToList();
                 return AllColumns().ToList();
             }
-            if (Regex.IsMatch(upper, @"ORDER\s+BY\s+\w+$"))
-                return new List<string> { "DESC", "ASC", "LIMIT" };
-            if (Regex.IsMatch(upper, @"(DESC|ASC)$"))
-                return new List<string> { "LIMIT" };
-
             return new List<string>();
         }
 

@@ -120,13 +120,15 @@ namespace QueryQuest.UI
             frt.offsetMax = new Vector2(-3f, -3f);
 
             var fill = fillGO.AddComponent<Image>();
-            // Sprite BRANCO: a cor vem do tint, que muda para vermelho quando a
-            // mana não dá. Type.Filled não combina com 9-slice, então o sprite é
-            // um retângulo arredondado sólido, recortado na horizontal.
-            fill.sprite = GrimoireSkin.Painel(Color.white, Color.white, 6, 0);
-            fill.type = Image.Type.Filled;
-            fill.fillMethod = Image.FillMethod.Horizontal;
-            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            // Sprite BRANCO em 9-slice: a cor vem do tint, que muda para vermelho
+            // quando a mana não dá.
+            //
+            // Com Type.Filled o sprite arredondado era ESTICADO na largura toda da
+            // barra, e os cantos de 6px viravam rampas longas — a barra parecia
+            // afinar nas pontas. Em 9-slice os cantos mantêm o tamanho original e
+            // só o miolo estica; quem controla o preenchimento é a largura do
+            // próprio rect (ver ManaCostMeter.Atualizar).
+            GrimoireSkin.Vestir(fill, Color.white, Color.white, 6, 0);
             fill.raycastTarget = false;
 
             var medidor = go.AddComponent<ManaCostMeter>();
@@ -242,6 +244,11 @@ namespace QueryQuest.UI
         {
             var img = t != null ? t.GetComponent<Image>() : null;
             if (img != null) GrimoireSkin.Vestir(img, GrimoireSkin.Pergaminho, GrimoireSkin.OuroEscuro, 10, 3);
+
+            // As cores do terminal foram feitas para fundo escuro; aqui o fundo
+            // é pergaminho.
+            var terminal = t != null ? t.GetComponentInParent<QueryTerminalUI>() : null;
+            if (terminal != null) terminal.UsarPaletaPergaminho();
 
             // Sem um Graphic com raycastTarget sob o cursor o ScrollRect não
             // recebe a roda do mouse — mesmo motivo da aba TABELAS.
@@ -359,7 +366,11 @@ namespace QueryQuest.UI
             if (_fill == null) return;
 
             var previsao = ManaSystem.Prever(consulta);
-            _fill.fillAmount = previsao.Fracao;
+            // A largura do rect é o preenchimento: a âncora direita acompanha a
+            // fração, e o 9-slice preserva os cantos em qualquer tamanho.
+            var rt = _fill.rectTransform;
+            rt.anchorMax = new Vector2(previsao.Fracao, 1f);
+            rt.offsetMax = new Vector2(-3f, -3f);
 
             var mana = ManaSystem.Instance;
             bool falta = mana != null && !mana.HasMana(previsao.Custo);

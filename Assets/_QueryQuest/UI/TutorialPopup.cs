@@ -134,7 +134,28 @@ namespace QueryQuest.UI
             _pagina = 0;
             gameObject.SetActive(true);
             transform.SetAsLastSibling();
+            AcimaDoGrimorio();
             Mostrar();
+        }
+
+        /// <summary>
+        /// O grimório desenha num Canvas próprio, com overrideSorting e ordem 500
+        /// (ver HudSkin.GrimoireAcimaDeTudo). Ser o último irmão não basta contra
+        /// isso: o tutorial, aberto pelo botão AJUDA que fica DENTRO do grimório,
+        /// aparecia atrás dele. Só um Canvas de ordem maior o traz para a frente.
+        /// </summary>
+        private void AcimaDoGrimorio()
+        {
+            // Sem o '??': GetComponent devolve um fake-null quando o componente
+            // não existe, e o operador de coalescência não enxerga o == da Unity,
+            // então devolveria esse fake-null em vez de criar o Canvas.
+            var canvas = GetComponent<Canvas>();
+            if (canvas == null) canvas = gameObject.AddComponent<Canvas>();
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 600;
+
+            if (GetComponent<GraphicRaycaster>() == null)
+                gameObject.AddComponent<GraphicRaycaster>();
         }
 
         public void Fechar() => gameObject.SetActive(false);

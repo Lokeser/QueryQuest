@@ -156,7 +156,10 @@ namespace QueryQuest.UI
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
 
-            var img = go.GetComponent<Image>() ?? go.AddComponent<Image>();
+            // '??' devolveria o fake-null do GetComponent e o Vestir sairia pelo
+            // seu próprio guard de nulo — a faixa ficava sem fundo nenhum.
+            var img = go.GetComponent<Image>();
+            if (img == null) img = go.AddComponent<Image>();
             GrimoireSkin.Vestir(img, cor, Escurecer(cor, 0.6f), 6, 1);
             img.raycastTarget = false;
 
@@ -168,7 +171,8 @@ namespace QueryQuest.UI
             rrt.anchorMin = Vector2.zero; rrt.anchorMax = Vector2.one;
             rrt.offsetMin = new Vector2(3f, 1f); rrt.offsetMax = new Vector2(-3f, -1f);
 
-            var tmp = rotuloGO.GetComponent<TextMeshProUGUI>() ?? rotuloGO.AddComponent<TextMeshProUGUI>();
+            var tmp = rotuloGO.GetComponent<TextMeshProUGUI>();
+            if (tmp == null) tmp = rotuloGO.AddComponent<TextMeshProUGUI>();
             tmp.text = NomeDoTipo(tipo);
             tmp.color = Color.white;
             tmp.fontStyle = FontStyles.Bold;

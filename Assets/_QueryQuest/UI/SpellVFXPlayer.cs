@@ -16,8 +16,14 @@ namespace QueryQuest.UI
 {
     public class SpellVFXPlayer : MonoBehaviour
     {
-        /// <summary>Tempo de voo do projétil. O recuo do inimigo espera isso para bater com o impacto.</summary>
-        public const float FlightTime = 0.35f;
+        /// <summary>
+        /// Tempo de voo do projétil, e portanto o tempo até a animação de dano
+        /// começar — o recuo do golem espera exatamente isto para bater com o
+        /// impacto (ver EnemyAnimationController.RecoilOnImpact). Era 0,35s;
+        /// 20% a mais dá ao jogador tempo de ler o que a consulta fez antes de a
+        /// magia chegar.
+        /// </summary>
+        public const float FlightTime = 0.42f;
 
         private const float ProjectileFps = 24f;
         private const float ExplosionFps  = 42f;

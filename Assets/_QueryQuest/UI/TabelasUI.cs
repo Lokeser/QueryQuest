@@ -173,7 +173,9 @@ namespace QueryQuest.UI
                         ? $"<b><color={HexDestaque}>{c.Nome}</color></b>"
                         : $"<b>{c.Nome}</b>";
                     string tipo = string.IsNullOrEmpty(c.Tipo) ? "" : $" <color={HexTipo}><size=88%>{c.Tipo}</size></color>";
-                    string marca = c.Destaque ? "◆ " : "•  ";
+                    // ">" e ASCII: o losango U+25C6 nao existe na fonte e saia como
+                    // quadrado vazio. O ponto U+2022 renderiza normalmente.
+                    string marca = c.Destaque ? "> " : "•  ";
                     sb.AppendLine($"{marca}{rotulo}{tipo}");
                     if (!string.IsNullOrEmpty(c.Explicacao))
                         sb.AppendLine($"    <size=92%>{c.Explicacao}</size>");
@@ -190,10 +192,10 @@ namespace QueryQuest.UI
         {
             var sb = new StringBuilder();
             sb.AppendLine($"<b><color={HexDestaque}>LEMBRETES DE SINTAXE</color></b>");
-            sb.AppendLine("◆ Texto vai entre aspas simples: <b>WHERE Elemento = 'Fogo'</b>");
-            sb.AppendLine("◆ Número vai sem aspas: <b>WHERE DanoBase &gt; 40</b>");
-            sb.AppendLine("◆ Quanto mais filtro, <b>mais barata</b> fica a magia: WHERE, AND, ORDER BY e LIMIT descontam mana.");
-            sb.Append("◆ <b>◆</b> marca as colunas que mudam o resultado do combate.");
+            sb.AppendLine("• Texto vai entre aspas simples: <b>WHERE Elemento = 'Fogo'</b>");
+            sb.AppendLine("• Número vai sem aspas: <b>WHERE DanoBase &gt; 40</b>");
+            sb.AppendLine("• Quanto mais filtro, <b>mais barata</b> fica a magia: WHERE, AND, ORDER BY e LIMIT descontam mana.");
+            sb.Append("• As colunas marcadas com <b>&gt;</b> mudam o resultado do combate.");
 
             Cartao(sb.ToString(), GrimoireSkin.PergaminhoEscuro, GrimoireSkin.OuroEscuro, 14.5f);
         }

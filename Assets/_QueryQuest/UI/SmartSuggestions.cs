@@ -59,6 +59,21 @@ namespace QueryQuest.UI
 
         private readonly List<GameObject> _buttons = new();
 
+        // Chips na paleta do grimório. As cores do Inspector foram feitas para o
+        // tema roxo antigo e destoam da madeira/ouro; quem manda agora é o skin.
+        private bool _paletaDoGrimorio;
+
+        /// <summary>Veste os chips de sugestão na paleta do grimório.</summary>
+        public void AplicarPaleta(Color fundo, Color texto)
+        {
+            _paletaDoGrimorio = true;
+            buttonColor = fundo;
+            textColor = texto;
+
+            // Os que já estão na tela mudam junto
+            RefreshSuggestions(queryInput != null ? queryInput.text : "");
+        }
+
         // ─────────────────────────────────────────────────────────────────────
         // UNITY
         // ─────────────────────────────────────────────────────────────────────
@@ -152,6 +167,22 @@ namespace QueryQuest.UI
                 return AllColumns().ToList();
             }
 
+            // ORDER BY / LIMIT são testados ANTES do bloco do WHERE de propósito.
+            // Em "WHERE Elemento = 'Fogo' ORDER BY DanoBase", o bloco do WHERE vê
+            // "DanoBase" como última palavra, reconhece a coluna e sugere
+            // operadores de comparação — quando o que cabe ali é DESC/ASC/LIMIT.
+            // Quem termina a consulta manda em quem começou.
+            if (Regex.IsMatch(upperTrim, @"ORDER\s+BY\s+\w+$"))
+                return new List<string> { "DESC", "ASC", "LIMIT" };
+
+            if (Regex.IsMatch(upperTrim, @"\b(DESC|ASC)$"))
+                return new List<string> { "LIMIT" };
+
+            // Depois de LIMIT não havia nada. O jogo é de poucas linhas, então os
+            // valores úteis são poucos e cabem como atalho.
+            if (Regex.IsMatch(upperTrim, @"\bLIMIT$"))
+                return new List<string> { "1", "3", "5" };
+
             // Depois de WHERE, detecta se acabou de digitar uma coluna → sugere operador
             if (upper.Contains("WHERE"))
             {
@@ -194,6 +225,16 @@ namespace QueryQuest.UI
                 }
             }
 
+            // Depois de AND/OR a lista ficava VAZIA: o bloco do WHERE não tinha
+            // regra para o conectivo, e o jogador perdia a pista de que ali entra
+            // outra coluna — justamente onde nasce o AND pendurado.
+            if (Regex.IsMatch(upperTrim, @"\b(AND|OR)$"))
+            {
+                if (activeTable != null && Columns.ContainsKey(activeTable))
+                    return Columns[activeTable].ToList();
+                return AllColumns().ToList();
+            }
+
             // Depois de ORDER BY → sugere colunas, depois ASC/DESC
             if (Regex.IsMatch(upperTrim, @"ORDER\s+BY$"))
             {
@@ -201,11 +242,6 @@ namespace QueryQuest.UI
                     return Columns[activeTable].ToList();
                 return AllColumns().ToList();
             }
-            if (Regex.IsMatch(upper, @"ORDER\s+BY\s+\w+$"))
-                return new List<string> { "DESC", "ASC", "LIMIT" };
-            if (Regex.IsMatch(upper, @"(DESC|ASC)$"))
-                return new List<string> { "LIMIT" };
-
             return new List<string>();
         }
 
@@ -294,11 +330,23 @@ namespace QueryQuest.UI
             rt.sizeDelta = new Vector2(80, 30);
 
             var img = go.AddComponent<Image>();
-            img.color = buttonColor;
+            if (_paletaDoGrimorio) GrimoireSkin.Vestir(img, buttonColor, GrimoireSkin.OuroEscuro, 6, 1);
+            else img.color = buttonColor;
 
             var btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
             btn.onClick.AddListener(() => ApplySuggestion(suggestion));
+
+            if (_paletaDoGrimorio)
+            {
+                var cores = btn.colors;
+                cores.normalColor      = Color.white;
+                cores.highlightedColor = new Color(1f, 0.94f, 0.78f);
+                cores.pressedColor     = new Color(0.75f, 0.70f, 0.60f);
+                cores.selectedColor    = Color.white;
+                cores.fadeDuration     = 0.08f;
+                btn.colors = cores;
+            }
 
             // Texto
             var textGO = new GameObject("Text");
@@ -317,6 +365,11 @@ namespace QueryQuest.UI
             tmp.enableAutoSizing = false;
             tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.overflowMode = TextOverflowModes.Overflow;
+
+            // O TextStyler só revisita a cena a cada 0,35s, e os chips são
+            // recriados a cada tecla: sem isto eles apareceriam sem contorno e
+            // ganhariam um piscando depois.
+            if (_paletaDoGrimorio) TextOutline.Aplicar(tmp);
 
             // LayoutElement controla o tamanho do botão dentro do layout group.
             // A largura se adapta ao texto: ~11px por caractere + padding.

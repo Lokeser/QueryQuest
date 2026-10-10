@@ -126,6 +126,27 @@ namespace QueryQuest.Database
         {
             var conditions = new List<WhereCondition>();
 
+            // ── Conectivos sem condição ────────────────────────────────────
+            // Precisa vir ANTES do split: "Elemento = 'Fogo' AND " (com espaço no
+            // fim) era dividido em ["Elemento = 'Fogo'", "AND", ""], o token vazio
+            // era descartado e o AND pendurado passava EM SILÊNCIO, com a consulta
+            // rodando como se ele não existisse. E "WHERE AND AND AND" acusava
+            // "condição inválida" apontando para a palavra errada.
+            string limpo = Regex.Replace(wherePart, @"\s+", " ").Trim();
+
+            if (Regex.IsMatch(limpo, @"^(AND|OR)\b", RegexOptions.IgnoreCase))
+                return (false, "A condição antes do " + PrimeiraPalavra(limpo) +
+                               " está faltando. Exemplo: WHERE Elemento = 'Fogo'", null);
+
+            if (Regex.IsMatch(limpo, @"\b(AND|OR)$", RegexOptions.IgnoreCase))
+                return (false, "Falta a condição depois do " + UltimaPalavra(limpo) +
+                               ". Exemplo: WHERE Elemento = 'Fogo' AND Nivel = 1", null);
+
+            var repetido = Regex.Match(limpo, @"\b(AND|OR)\s+(AND|OR)\b", RegexOptions.IgnoreCase);
+            if (repetido.Success)
+                return (false, $"'{repetido.Groups[1].Value.ToUpper()} {repetido.Groups[2].Value.ToUpper()}' " +
+                               "seguidos: falta a condição entre eles.", null);
+
             // Divide por AND / OR preservando os operadores lógicos
             var tokens     = Regex.Split(wherePart, @"\s+(AND|OR)\s+", RegexOptions.IgnoreCase);
             var logicalOps = Regex.Matches(wherePart, @"\s+(AND|OR)\s+", RegexOptions.IgnoreCase);
@@ -176,6 +197,14 @@ namespace QueryQuest.Database
             }
 
             return (true, null, conditions);
+        }
+
+        private static string PrimeiraPalavra(string s) => s.Split(' ')[0].ToUpper();
+
+        private static string UltimaPalavra(string s)
+        {
+            var p = s.Split(' ');
+            return p[p.Length - 1].ToUpper();
         }
 
         /// <summary>

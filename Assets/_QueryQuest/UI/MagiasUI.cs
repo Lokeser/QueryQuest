@@ -58,7 +58,9 @@ namespace QueryQuest.UI
 
             _resumo = topoGO.AddComponent<TextMeshProUGUI>();
             _resumo.fontSize = 15f;
-            _resumo.color = GrimoireSkin.Tinta;
+            // Esta linha fica sobre a MADEIRA do painel, não sobre o pergaminho:
+            // em tinta escura ela praticamente sumia.
+            _resumo.color = Color.white;
             _resumo.alignment = TextAlignmentOptions.Left;
             _resumo.textWrappingMode = TextWrappingModes.NoWrap;
             _resumo.raycastTarget = false;
@@ -152,7 +154,7 @@ namespace QueryQuest.UI
 
             if (_resumo != null)
                 _resumo.text = $"<b>{liberadas}</b> de <b>{magias.Count}</b> magias desbloqueadas   " +
-                               $"<size=88%><color=#7A6A4A>· as bloqueadas aparecem na consulta, mas não são lançadas</color></size>";
+                               $"<size=88%><color=#CBBB92>· as bloqueadas aparecem na consulta, mas não são lançadas</color></size>";
 
             string elementoAtual = null;
             foreach (var m in magias)

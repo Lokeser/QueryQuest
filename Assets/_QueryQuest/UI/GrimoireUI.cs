@@ -41,9 +41,9 @@ namespace QueryQuest.UI
         [SerializeField] private Button tabArsenal;
         [SerializeField] private Button tabDocs;
 
-        [Header("Tab Colors")]
-        [SerializeField] private Color tabActiveColor = new Color(0.67f, 0.62f, 0.85f); // #a89fd8
-        [SerializeField] private Color tabInactiveColor = new Color(0.42f, 0.41f, 0.56f); // #6b6890
+        // As cores das abas saíram daqui: quem pinta é o GrimoireSkin
+        // (ver RefreshTabColors). Os campos antigos do tema roxo eram o
+        // segundo dono da mesma cor, e é disso que vinha o bug visual.
 
         [Header("Status")]
         [SerializeField] private TextMeshProUGUI statusText;
@@ -202,20 +202,17 @@ namespace QueryQuest.UI
             if (tab == Tab.Arsenal) _arsenal?.Refresh();
         }
 
-        private void RefreshTabColors()
-        {
-            SetTabColor(tabQuery, _currentTab == Tab.Query);
-            SetTabColor(tabMagias, _currentTab == Tab.Magias);
-            SetTabColor(tabArsenal, _currentTab == Tab.Arsenal);
-            SetTabColor(tabDocs, _currentTab == Tab.Docs);
-        }
-
-        private void SetTabColor(Button btn, bool active)
-        {
-            if (btn == null) return;
-            var label = btn.GetComponentInChildren<TextMeshProUGUI>();
-            if (label != null) label.color = active ? tabActiveColor : tabInactiveColor;
-        }
+        /// <summary>
+        /// Quem pinta as abas é o GrimoireSkin, e só ele.
+        ///
+        /// Antes havia dois donos da mesma cor: aqui os rótulos eram pintados no
+        /// roxo-azulado do tema antigo, e lá o fundo e o rótulo iam para a paleta
+        /// de madeira/pergaminho. Como este método rodava no Open() e o
+        /// RepintarAbas só rodava no clique, a primeira abertura saía com as
+        /// letras azuis e com o fundo de TODAS as abas no estado em que a
+        /// vestimenta os deixara — daí a impressão de todas selecionadas.
+        /// </summary>
+        private void RefreshTabColors() => GrimoireSkin.RepintarAbas();
 
         // ─────────────────────────────────────────────────────────────────────
         // EVENTOS DO COMBATE

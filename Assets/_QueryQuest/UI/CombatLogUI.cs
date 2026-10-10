@@ -100,7 +100,11 @@ namespace QueryQuest.UI
             {
                 if (line == null) continue;
                 var tmp = line.GetComponent<TextMeshProUGUI>();
-                if (tmp != null) tmp.color = GetColorForMessage(tmp.text);
+                if (tmp == null) continue;
+                tmp.color = GetColorForMessage(tmp.text);
+                // A cor mudou de clara para escura: o contorno tem de virar junto,
+                // senão a linha fica com o contorno feito para o fundo antigo.
+                TextOutline.Aplicar(tmp);
             }
         }
 
@@ -124,6 +128,10 @@ namespace QueryQuest.UI
 
                 var fonte = QueryQuest.UI.TextStyler.Fonte;
                 if (fonte != null) tmp.font = fonte;
+
+                // Depois da fonte: trocar o font asset devolve o material padrão
+                // dele e apagaria o contorno aplicado antes.
+                TextOutline.Aplicar(tmp);
 
                 var le = line.GetComponent<LayoutElement>();
                 if (le == null || logContent == null) continue;
@@ -155,6 +163,11 @@ namespace QueryQuest.UI
                 // A fonte entra ANTES do cálculo de altura (GetPreferredValues)
                 var fonte = QueryQuest.UI.TextStyler.Fonte;
                 if (fonte != null) tmp.font = fonte;
+
+                // O contorno vem depois da fonte (o font asset traz o material
+                // dele junto) e não altera a métrica — a altura calculada abaixo
+                // continua válida.
+                TextOutline.Aplicar(tmp);
 
                 // Garante que o texto quebra linha e não transborda
                 tmp.textWrappingMode = TextWrappingModes.Normal;

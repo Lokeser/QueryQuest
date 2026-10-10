@@ -18,6 +18,13 @@ namespace QueryQuest.UI
         private static readonly Color Ink   = new Color(0.24f, 0.15f, 0.06f);
         private static readonly Color Realce = new Color(0.42f, 0.20f, 0.04f);
 
+        /// <summary>
+        /// Limites do pergaminho dentro da moldura hud_painel, com uma folga.
+        /// Medidos na arte: o bege vai de 0,147 a 0,906 na horizontal.
+        /// </summary>
+        private const float SafeX0 = 0.168f;
+        private const float SafeX1 = 0.886f;
+
         private struct Pagina
         {
             public string Titulo;
@@ -77,7 +84,7 @@ namespace QueryQuest.UI
             var raiz = (RectTransform)transform;
             raiz.anchorMin = raiz.anchorMax = new Vector2(0.5f, 0.5f);
             raiz.pivot = new Vector2(0.5f, 0.5f);
-            raiz.sizeDelta = new Vector2(920f, 580f);
+            raiz.sizeDelta = new Vector2(1080f, 660f);
             raiz.anchoredPosition = Vector2.zero;
 
             var fundo = gameObject.AddComponent<Image>();
@@ -85,26 +92,37 @@ namespace QueryQuest.UI
             if (moldura != null) UiFrame.Apply(fundo, moldura);
             else fundo.color = new Color(0.96f, 0.90f, 0.74f);
 
-            // Os tamanhos são os de ANTES do TextStyler, que ainda aplica +20%.
-            // Com auto-size a página mais longa encolhe até caber em vez de
-            // transbordar a moldura.
-            _titulo = Texto(raiz, "Titulo", "", 19f, Realce, 0.08f, 0.09f, 0.92f, 0.21f);
+            // Tudo aqui dentro respeita a ÁREA BEGE da moldura, e não o retângulo
+            // do painel. A hud_painel é 9-slice com borda de 279x221px sobre uma
+            // arte de 996x790: o pergaminho começa em x 0,147 e termina em 0,906,
+            // e verticalmente vai de 0,115 a 0,812. Usar as bordas do painel como
+            // referência jogava o título por baixo do entalhe dourado.
+            // Os tamanhos de fonte são os de ANTES do TextStyler, que aplica +20%.
+            // O título estava encostado no entalhe dourado do topo, que passa por
+            // cima dele. Desce para dentro do pergaminho e ganha uma faixa mais
+            // alta — cabe fonte maior sem esbarrar na moldura.
+            _titulo = Texto(raiz, "Titulo", "", 26f, Realce, SafeX0, 0.185f, SafeX1, 0.310f);
             _titulo.enableAutoSizing = true;
-            _titulo.fontSizeMin = 11f;
-            _titulo.fontSizeMax = 19f;
+            _titulo.fontSizeMin = 15f;
+            _titulo.fontSizeMax = 26f;
 
-            _corpo = Texto(raiz, "Corpo", "", 14f, Ink, 0.09f, 0.24f, 0.91f, 0.75f);
+            // Filete dourado sob o título, separando-o do corpo
+            Filete(raiz, SafeX0 + 0.06f, 0.325f, SafeX1 - 0.06f, 0.332f);
+
+            // O que o título desceu, o corpo recupera embaixo: os botões descem
+            // junto, sem passar do fim do pergaminho (y 0,812 na arte).
+            _corpo = Texto(raiz, "Corpo", "", 17f, Ink, SafeX0 + 0.02f, 0.360f, SafeX1 - 0.018f, 0.685f);
             _corpo.alignment = TextAlignmentOptions.TopLeft;
-            _corpo.lineSpacing = 4f;
+            _corpo.lineSpacing = 6f;
             _corpo.enableAutoSizing = true;
-            _corpo.fontSizeMin = 9f;
-            _corpo.fontSizeMax = 14f;
+            _corpo.fontSizeMin = 11f;
+            _corpo.fontSizeMax = 17f;
 
-            _contador = Texto(raiz, "Contador", "", 12f, new Color(0.45f, 0.34f, 0.20f),
-                              0.40f, 0.79f, 0.60f, 0.87f);
+            _contador = Texto(raiz, "Contador", "", 13f, new Color(0.45f, 0.34f, 0.20f),
+                              0.430f, 0.712f, 0.570f, 0.778f);
 
-            _btnAnterior = Botao(raiz, "ANTERIOR", 0.08f, 0.80f, 0.30f, 0.91f, () => Ir(-1));
-            _btnProximo  = Botao(raiz, "PROXIMO",  0.70f, 0.80f, 0.92f, 0.91f, () => Ir(+1));
+            _btnAnterior = Botao(raiz, "ANTERIOR", SafeX0 + 0.005f, 0.700f, 0.375f, 0.800f, () => Ir(-1));
+            _btnProximo  = Botao(raiz, "PROXIMO",  0.680f, 0.700f, SafeX1 - 0.005f, 0.800f, () => Ir(+1));
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -116,7 +134,28 @@ namespace QueryQuest.UI
             _pagina = 0;
             gameObject.SetActive(true);
             transform.SetAsLastSibling();
+            AcimaDoGrimorio();
             Mostrar();
+        }
+
+        /// <summary>
+        /// O grimório desenha num Canvas próprio, com overrideSorting e ordem 500
+        /// (ver HudSkin.GrimoireAcimaDeTudo). Ser o último irmão não basta contra
+        /// isso: o tutorial, aberto pelo botão AJUDA que fica DENTRO do grimório,
+        /// aparecia atrás dele. Só um Canvas de ordem maior o traz para a frente.
+        /// </summary>
+        private void AcimaDoGrimorio()
+        {
+            // Sem o '??': GetComponent devolve um fake-null quando o componente
+            // não existe, e o operador de coalescência não enxerga o == da Unity,
+            // então devolveria esse fake-null em vez de criar o Canvas.
+            var canvas = GetComponent<Canvas>();
+            if (canvas == null) canvas = gameObject.AddComponent<Canvas>();
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 600;
+
+            if (GetComponent<GraphicRaycaster>() == null)
+                gameObject.AddComponent<GraphicRaycaster>();
         }
 
         public void Fechar() => gameObject.SetActive(false);
@@ -155,6 +194,18 @@ namespace QueryQuest.UI
             rt.anchorMax = new Vector2(x1, 1f - yTop0);
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero;
+        }
+
+        /// <summary>Filete dourado — separa o título do corpo sem pesar na tela.</summary>
+        private static void Filete(Transform pai, float x0, float y0, float x1, float y1)
+        {
+            var go = new GameObject("Filete", typeof(RectTransform));
+            go.transform.SetParent(pai, false);
+            Fracao(go.transform, x0, y0, x1, y1);
+
+            var img = go.AddComponent<Image>();
+            img.color = new Color(0.62f, 0.47f, 0.16f, 0.55f);
+            img.raycastTarget = false;
         }
 
         private static TextMeshProUGUI Texto(Transform pai, string nome, string texto, float tamanho,

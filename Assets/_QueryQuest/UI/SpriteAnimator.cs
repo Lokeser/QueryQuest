@@ -71,7 +71,7 @@ namespace QueryQuest.UI
             if (_current != null) StopCoroutine(_current);
             _currentName = animName;
             ApplyFlip(anim);
-            _current = StartCoroutine(PlayRoutine(anim, onComplete));
+            _current = StartCoroutine(PlayRoutine(anim, null, onComplete));
         }
 
         /// <summary>Toca uma animação uma vez e volta para a default ao terminar.</summary>
@@ -84,7 +84,7 @@ namespace QueryQuest.UI
             if (_current != null) StopCoroutine(_current);
             _currentName = animName;
             ApplyFlip(anim);
-            _current = StartCoroutine(PlayOnceRoutine(anim, returnTo ?? defaultAnimation));
+            _current = StartCoroutine(PlayRoutine(anim, returnTo ?? defaultAnimation, null, umaVez: true));
         }
 
         /// <summary>Espelha (ou não) o transform conforme a animação pede.</summary>
@@ -95,36 +95,50 @@ namespace QueryQuest.UI
             transform.localScale = new Vector3(x, s.y, s.z);
         }
 
-        private IEnumerator PlayRoutine(SpriteAnimation anim, Action onComplete)
+        /// <summary>
+        /// Avança os frames por tempo acumulado, e não com WaitForSeconds.
+        /// O WaitForSeconds só acorda no PRÓXIMO quadro depois do prazo: a 60 fps,
+        /// cada frame de 1/18s custava 1/15s, e a animação inteira estourava a
+        /// própria duração em ~20%. Como a caminhada do herói agora dita o tempo
+        /// do deslocamento pela arena (ArenaSceneView), esse erro apareceria como
+        /// o personagem chegando ao destino e continuando a andar parado.
+        ///
+        /// 'returnTo' não-nulo = toca uma vez e emenda naquela animação;
+        /// nulo = respeita anim.loop (e, sem loop, congela no último frame).
+        /// </summary>
+        private IEnumerator PlayRoutine(SpriteAnimation anim, string returnTo,
+                                        Action onComplete, bool umaVez = false)
         {
             float frameTime = 1f / Mathf.Max(1f, anim.fps);
+            float acumulado = 0f;
             int i = 0;
+            _image.sprite = anim.frames[0];
 
             while (true)
             {
-                _image.sprite = anim.frames[i];
-                yield return new WaitForSeconds(frameTime);
-                i++;
+                yield return null;
+                acumulado += Time.deltaTime;
 
-                if (i >= anim.frames.Length)
+                // while, e não if: num quadro longo a animação PULA frames em vez
+                // de atrasar, que é o que mantém a duração real igual à nominal.
+                while (acumulado >= frameTime)
                 {
-                    if (anim.loop) i = 0;
-                    else break;
+                    acumulado -= frameTime;
+                    i++;
+
+                    if (i >= anim.frames.Length)
+                    {
+                        if (anim.loop && !umaVez) { i = 0; }
+                        else
+                        {
+                            onComplete?.Invoke();
+                            if (returnTo != null) Play(returnTo, force: true);
+                            yield break;
+                        }
+                    }
+                    _image.sprite = anim.frames[i];
                 }
             }
-            onComplete?.Invoke();
-        }
-
-        private IEnumerator PlayOnceRoutine(SpriteAnimation anim, string returnTo)
-        {
-            float frameTime = 1f / Mathf.Max(1f, anim.fps);
-            for (int i = 0; i < anim.frames.Length; i++)
-            {
-                _image.sprite = anim.frames[i];
-                yield return new WaitForSeconds(frameTime);
-            }
-            // Volta para a animação de retorno
-            Play(returnTo, force: true);
         }
 
         private SpriteAnimation FindAnimation(string name)
@@ -136,5 +150,18 @@ namespace QueryQuest.UI
         }
 
         public string CurrentAnimation => _currentName;
+
+        /// <summary>
+        /// Quanto tempo a animação leva para tocar uma vez, em segundos.
+        /// 0 se ela não existir. O deslocamento do personagem pela arena usa
+        /// isto para durar exatamente o que a caminhada dura — caminhar no
+        /// lugar e chegar por teleporte era o que denunciava a falta de sincronia.
+        /// </summary>
+        public float DuracaoDe(string animName)
+        {
+            var anim = FindAnimation(animName);
+            if (anim == null || anim.frames == null || anim.frames.Length == 0) return 0f;
+            return anim.frames.Length / Mathf.Max(1f, anim.fps);
+        }
     }
 }

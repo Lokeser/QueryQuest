@@ -428,17 +428,119 @@ namespace QueryQuest.UI
         // ATUALIZAÇÃO DE POSIÇÕES
         // ─────────────────────────────────────────────────────────────────────
 
+        // ── Caminhada ────────────────────────────────────────────────────────
+        // Mover era um corte seco: o slot mudava e o token aparecia no destino,
+        // enquanto a animação de andar tocava no lugar. Agora o token PERCORRE a
+        // distância, e no caso do herói o percurso dura exatamente o que a
+        // animação "andando" dura, de modo que os passos batem com o avanço.
+
+        /// <summary>Duração do deslize quando não há caminhada para casar (o golem).</summary>
+        private const float DeslizePadrao = 0.5f;
+
+        /// <summary>Para onde um token está indo, e a corrotina que o leva.</summary>
+        private class Caminhada
+        {
+            public Coroutine Rotina;
+            public Vector3 Destino;
+            public bool Ativa;
+        }
+
+        private readonly Caminhada _passoJogador = new Caminhada();
+        private readonly Caminhada _passoInimigo = new Caminhada();
+        private int _ultimoSlotJogador = -1, _ultimoSlotInimigo = -1;
+
         private void OnPositionsChanged(int playerSlot, int enemySlot)
         {
-            UpdatePositions(playerSlot, enemySlot);
+            // Só é caminhada quando anda UM slot — que é o único movimento que o
+            // jogo faz de verdade (MovePlayer e MoveEnemyTowardsPlayer andam ±1).
+            // Um salto maior é reposicionamento (ResetPositions no começo do
+            // andar), e ali o personagem tem de simplesmente aparecer no lugar.
+            bool jogadorAndou = _ultimoSlotJogador >= 0 && Mathf.Abs(playerSlot - _ultimoSlotJogador) == 1;
+            bool inimigoAndou = _ultimoSlotInimigo >= 0 && Mathf.Abs(enemySlot - _ultimoSlotInimigo) == 1;
+
+            UpdatePositions(playerSlot, enemySlot, jogadorAndou, inimigoAndou);
         }
 
         private void UpdatePositions(int playerSlot, int enemySlot)
-        {
-            PositionTokenOnSlot(_playerToken, playerSlot, isPlayer: true, sharesSlot: playerSlot == enemySlot);
-            PositionTokenOnSlot(_enemyToken,  enemySlot,  isPlayer: false, sharesSlot: playerSlot == enemySlot);
+            => UpdatePositions(playerSlot, enemySlot, false, false);
 
-            // A lua acompanha o herói (atrás e acima dele)
+        private void UpdatePositions(int playerSlot, int enemySlot,
+                                     bool jogadorAndando, bool inimigoAndando)
+        {
+            _ultimoSlotJogador = playerSlot;
+            _ultimoSlotInimigo = enemySlot;
+
+            bool juntos = playerSlot == enemySlot;
+            LevarToken(_passoJogador, _playerToken, playerSlot, true, juntos,
+                       jogadorAndando, DuracaoDaCaminhada());
+            LevarToken(_passoInimigo, _enemyToken, enemySlot, false, juntos,
+                       inimigoAndando, DeslizePadrao);
+        }
+
+        /// <summary>Quanto dura a animação "andando" do herói, para o passo casar com o avanço.</summary>
+        private float DuracaoDaCaminhada()
+        {
+            var anim = _playerToken != null ? _playerToken.GetComponent<SpriteAnimator>() : null;
+            float d = anim != null ? anim.DuracaoDe("andando") : 0f;
+            return d > 0.01f ? d : DeslizePadrao;
+        }
+
+        private void LevarToken(Caminhada passo, RectTransform token, int slot,
+                                bool isPlayer, bool juntos, bool caminhando, float duracao)
+        {
+            if (token == null) return;
+
+            Vector3 destino = SlotPosition(slot, isPlayer, juntos);
+
+            // Já está a caminho DESTE mesmo ponto: deixa chegar. Sem isto,
+            // encerrar o turno logo depois de andar (o golem avança, o herói
+            // não) cortava a caminhada no meio e teleportava o herói para o fim.
+            if (passo.Ativa && passo.Destino == destino) return;
+
+            if (passo.Rotina != null) StopCoroutine(passo.Rotina);
+            passo.Rotina = null;
+            passo.Ativa = false;
+            passo.Destino = destino;
+
+            // Objeto desligado não roda corrotina: ali o corte seco é o certo.
+            if (!caminhando || !gameObject.activeInHierarchy)
+            {
+                token.localPosition = destino;
+                if (isPlayer) SeguirComLua();
+                return;
+            }
+
+            passo.Ativa = true;
+            passo.Rotina = StartCoroutine(Caminhar(passo, token, destino, duracao, isPlayer));
+        }
+
+        private System.Collections.IEnumerator Caminhar(Caminhada passo, RectTransform token,
+                                                        Vector3 destino, float duracao, bool isPlayer)
+        {
+            Vector3 origem = token.localPosition;
+            float t = 0f;
+
+            while (t < duracao)
+            {
+                t += Time.deltaTime;
+                // Velocidade constante, sem suavização: a animação de caminhada
+                // tem passadas em ritmo fixo, e acelerar ou frear no meio faria o
+                // personagem patinar contra os próprios pés.
+                token.localPosition = Vector3.Lerp(origem, destino, Mathf.Clamp01(t / duracao));
+                if (isPlayer) SeguirComLua();
+                yield return null;
+            }
+
+            token.localPosition = destino;
+            if (isPlayer) SeguirComLua();
+
+            passo.Ativa = false;
+            passo.Rotina = null;
+        }
+
+        /// <summary>A lua acompanha o herói (atrás e acima dele), inclusive durante a caminhada.</summary>
+        private void SeguirComLua()
+        {
             if (_spirit != null && _playerToken != null)
                 _spirit.FollowPlayer(_playerToken.localPosition, _playerToken.sizeDelta.y);
         }
@@ -471,17 +573,16 @@ namespace QueryQuest.UI
             return localPoint.x;
         }
 
-        private void PositionTokenOnSlot(RectTransform token, int slot, bool isPlayer, bool sharesSlot)
+        /// <summary>Onde o token fica quando está no slot dado (posição local).</summary>
+        private Vector3 SlotPosition(int slot, bool isPlayer, bool sharesSlot)
         {
-            if (token == null) return;
-
             // Desloca lateralmente se compartilham o slot (corpo a corpo)
             float offsetX = 0f;
             if (sharesSlot)
                 offsetX = isPlayer ? -tokenSize * 0.35f * playerScale : tokenSize * 0.35f * enemyScale;
 
             // X vem do slot; Y vem da plataforma do cenário (pivô do token = base)
-            token.localPosition = new Vector3(SlotCenterX(slot) + offsetX, GroundY(), 0f);
+            return new Vector3(SlotCenterX(slot) + offsetX, GroundY(), 0f);
         }
 
         // ─────────────────────────────────────────────────────────────────────

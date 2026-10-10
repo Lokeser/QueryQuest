@@ -183,16 +183,16 @@ namespace QueryQuest.UI
             MontarResolucoes();
 
             // Resolução
-            Texto(_painelConfig, "LabelRes", "Resolucao", 20f, Ink, 0.10f, 0.26f, 0.45f, 0.38f)
+            Texto(_painelConfig, "LabelRes", "Resolução", 20f, Ink, 0.10f, 0.26f, 0.45f, 0.38f)
                 .alignment = TextAlignmentOptions.Left;
             CriarBotao(_painelConfig, "<", 0.46f, 0.26f, 0.55f, 0.38f, () => TrocarResolucao(-1));
-            _labelRes = Texto(_painelConfig, "ValorRes", "", 20f, Pergaminho, 0.56f, 0.26f, 0.80f, 0.38f);
+            _labelRes = Texto(_painelConfig, "ValorRes", "", 20f, Ink, 0.56f, 0.26f, 0.80f, 0.38f);
             CriarBotao(_painelConfig, ">", 0.81f, 0.26f, 0.90f, 0.38f, () => TrocarResolucao(+1));
 
             // Tela cheia / janela
             Texto(_painelConfig, "LabelModo", "Modo", 20f, Ink, 0.10f, 0.44f, 0.45f, 0.56f)
                 .alignment = TextAlignmentOptions.Left;
-            _labelModo = Texto(_painelConfig, "ValorModo", "", 20f, Pergaminho, 0.56f, 0.44f, 0.80f, 0.56f);
+            _labelModo = Texto(_painelConfig, "ValorModo", "", 20f, Ink, 0.56f, 0.44f, 0.80f, 0.56f);
             CriarBotao(_painelConfig, "TROCAR", 0.46f, 0.60f, 0.90f, 0.72f, AlternarModo);
 
             // Aplicar / Voltar

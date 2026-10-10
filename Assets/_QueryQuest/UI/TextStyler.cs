@@ -22,12 +22,24 @@ namespace QueryQuest.UI
 
         private readonly HashSet<int> _styled = new HashSet<int>();
         private readonly List<Transform> _ignoreRoots = new List<Transform>();
+        private readonly List<Transform> _outlineRoots = new List<Transform>();
         private float _timer;
 
         /// <summary>Subárvores que se estilizam sozinhas (ex.: o registro de combate).</summary>
         public void Ignore(Transform root)
         {
             if (root != null) _ignoreRoots.Add(root);
+        }
+
+        /// <summary>
+        /// Subárvores cujos textos recebem contorno. Fica aqui (e não numa
+        /// passada única) porque boa parte do grimório — chips de sugestão,
+        /// cartões de magia, linhas das tabelas — nasce depois, conforme o
+        /// jogador digita e troca de aba.
+        /// </summary>
+        public void Contornar(Transform root)
+        {
+            if (root != null) _outlineRoots.Add(root);
         }
 
         private void Update()
@@ -57,6 +69,10 @@ namespace QueryQuest.UI
                     t.fontSizeMax *= Scale;
                 }
                 t.fontStyle |= FontStyles.Bold;
+
+                // Depois da troca de fonte: o font asset traz o material dele,
+                // e aplicar o contorno antes seria desfeito na linha acima.
+                if (IsInRoots(t.transform, _outlineRoots)) TextOutline.Aplicar(t);
             }
         }
 
@@ -131,9 +147,11 @@ namespace QueryQuest.UI
             return _fonte;
         }
 
-        private bool IsIgnored(Transform t)
+        private bool IsIgnored(Transform t) => IsInRoots(t, _ignoreRoots);
+
+        private static bool IsInRoots(Transform t, List<Transform> roots)
         {
-            foreach (var root in _ignoreRoots)
+            foreach (var root in roots)
                 if (root != null && t.IsChildOf(root)) return true;
             return false;
         }

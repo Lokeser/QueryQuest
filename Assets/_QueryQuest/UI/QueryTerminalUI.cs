@@ -202,6 +202,10 @@ namespace QueryQuest.UI
             go.transform.SetParent(logContent, false);
 
             var tmp = go.AddComponent<TextMeshProUGUI>();
+            // Com o grimório fechado o objeto está inativo, o Awake do TMP não
+            // roda e a fonte fica nula — medir a linha (GetPreferredValues)
+            // estourava NullReference no meio do turno do golem.
+            tmp.font = TMP_Settings.defaultFontAsset;
             tmp.fontSize = 14f;
             tmp.alignment = TextAlignmentOptions.TopLeft;
             tmp.textWrappingMode = TextWrappingModes.Normal;

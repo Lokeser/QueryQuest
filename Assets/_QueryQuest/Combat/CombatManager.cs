@@ -569,7 +569,14 @@ namespace QueryQuest.Combat
 
         private void Log(string msg)
         {
-            OnCombatLog?.Invoke(msg);
+            // Cada ouvinte isolado: um erro num painel de texto não pode
+            // interromper o turno que está registrando a mensagem.
+            if (OnCombatLog != null)
+                foreach (System.Action<string> ouvinte in OnCombatLog.GetInvocationList())
+                {
+                    try { ouvinte(msg); }
+                    catch (System.Exception e) { Debug.LogException(e); }
+                }
             Debug.Log($"[Combat] {msg}");
         }
 

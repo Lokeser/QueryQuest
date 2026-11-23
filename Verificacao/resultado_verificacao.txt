@@ -1,0 +1,68 @@
+VERIFICAÇÃO TÉCNICA DAS MECÂNICAS — QueryQuest
+Data: 23/11/2026 11:35 | Unity 6000.3.10f1 | cena Assets/Scenes/SampleScene.unity
+
+1. INTERPRETADOR SQL — rejeição de consultas inválidas e aceitação das válidas
+  [OK] rejeita (sintático) SELEC * FROM Magias
+  [OK] rejeita (sintático) SELECT * Magias
+  [OK] rejeita (sintático) SELECT * FROM Magias WHERE
+  [OK] rejeita (sintático) SELECT * FROM Magias WHERE Elemento = 'Fogo' AND
+  [OK] rejeita (sintático) SELECT * FROM Magias WHERE Elemento = 'Fogo' OR
+  [OK] rejeita (sintático) SELECT * FROM Magias WHERE AND Elemento = 'Fogo'
+  [OK] rejeita (sintático) SELECT * FROM Magias WHERE Elemento = 'Fogo' AND AND Nivel = 1
+  [OK] rejeita (semântico) SELECT Vida FROM Magias
+  [OK] rejeita (semântico) SELECT * FROM Feiticos
+  [OK] rejeita (semântico) SELECT * FROM Magias WHERE Cor = 'Azul'
+  [OK] aceita e devolve 18 linha(s): SELECT * FROM Magias  (obtido: 18)
+  [OK] aceita e devolve 4 linha(s): SELECT * FROM Magias WHERE Elemento = 'Fogo'  (obtido: 4)
+  [OK] aceita e devolve 2 linha(s): SELECT Nome FROM Magias WHERE Elemento = 'Fogo' AND Nivel = 1  (obtido: 2)
+  [OK] aceita e devolve 7 linha(s): SELECT * FROM Magias WHERE Elemento = 'Fogo' OR Elemento = 'Agua'  (obtido: 7)
+  [OK] aceita e devolve 4 linha(s): SELECT * FROM Magias WHERE DanoBase >= 70  (obtido: 4)
+  [OK] aceita e devolve 1 linha(s): SELECT * FROM Magias ORDER BY DanoBase DESC LIMIT 1  (obtido: 1)
+  [OK] aceita e devolve 1 linha(s): SELECT * FROM Magias WHERE Nome = 'Jato d'Agua'  (obtido: 1)
+  [OK] ORDER BY DanoBase DESC LIMIT 1 seleciona a magia de maior dano (obtido: Tempestade)
+
+2. ABSORÇÃO DE FRAGMENTOS — validação do JOIN
+  [OK] aceita: SELECT f.Nome, i.Nome FROM Fragmentos f JOIN Inimigos i ON f.InimigoID = i.Id WHERE f.FragmentoID = 1
+  [OK] aceita a ligação escrita na ordem inversa (i.Id = f.InimigoID)
+  [OK] recusa (sem JOIN) — dica exibida: "Falta trazer a outra tabela: JOIN Inimigos"
+  [OK] recusa (sem ON) — dica exibida: "O JOIN precisa do ON dizendo como as tabelas se ligam."
+  [OK] recusa (chave de ligação errada) — dica exibida: "A ligacao certa e InimigoID (de Fragmentos) = Id (de Inimigos)."
+  [OK] recusa (sem filtrar o fragmento) — dica exibida: "Filtre o fragmento escolhido: WHERE f.FragmentoID = 1"
+  [OK] recusa (comando de escrita) — dica exibida: "Aqui so entra consulta de leitura (SELECT)."
+  [OK] recusa (dois comandos) — dica exibida: "Uma consulta so, sem ponto e virgula."
+
+3. AFINIDADE ELEMENTAL — 25 combinações atacante x defensor
+  [OK] multiplicadores: 5 x1,5 (fraqueza) | 15 x1,0 (neutro) | 5 x0,75 (resistência) | 0 outros
+
+4. ESCOLHA DE RECOMPENSAS — sorteio de 3 cartas
+  [OK] magias bloqueadas no início da partida: 10 (esperado 10)
+  [OK] 3000 de 3000 telas com 3 cartas distintas
+  [OK] cartas diferentes que apareceram: 16 (1 armadura + 5 cajados + 10 páginas = 16)
+       frequência mínima/máxima de uma carta em 9000 sorteios: 320 / 2128
+  [OK] página de magia já desbloqueada não volta ao sorteio (aparições em 1000 telas: 0)
+
+5. CUSTO DE MANA — previsão da barra do grimório x mana efetivamente cobrada
+   inimigo: Golem de Fogo (elemento Fogo, fraqueza de distância LONGO)
+  [OK] previsto 35 | cobrado 35 | SELECT * FROM Magias WHERE Nome = 'Jato d'Agua'
+  [OK] previsto 35 | cobrado 35 | SELECT * FROM Magias WHERE Elemento = 'Vento'
+  [OK] previsto 27 | cobrado 27 | SELECT * FROM Magias WHERE Elemento = 'Terra' AND Nivel = 1
+  [OK] previsto 27 | cobrado 27 | SELECT * FROM Magias WHERE Elemento = 'Agua' AND Distancia = 'LONGO'
+  [OK] previsto  8 | cobrado  8 | SELECT * FROM Magias WHERE Elemento = 'Terra' AND Nivel <= 1 ORDER BY DanoBase DESC LIMIT 1
+  [OK] previsto 56 | cobrado 56 | SELECT * FROM Inimigos
+  [OK] previsto 16 | cobrado 16 | SELECT FraquezaElemento, FraquezaDistancia FROM Inimigos
+  [OK] previsto  8 | cobrado  8 | SELECT Elemento FROM Inimigos
+
+6. DANO — elemento, área de alcance e fraqueza de distância, no combate real
+  [OK] dano esperado  42 | causado  42 | Água x Fogo: 28 x 1,5
+  [OK] dano esperado  19 | causado  19 | Vento x Fogo: 25 x 0,75 (resistência)
+  [OK] dano esperado  40 | causado  40 | Terra x Fogo: 40 x 1,0 (neutro)
+  [OK] dano esperado 168 | causado 168 | Tsunami LONGO: 75 x 1,5 = 112, +50% pela fraqueza LONGO
+  [OK] dano esperado   0 | causado   0 | Púa de Pedra (CURTO) a 4 slots: fora da área, erra
+
+7. CICLO DE TURNOS — ENCERRAR TURNO devolve a vez ao jogador
+  [OK] turno 1: jogador -> golem -> jogador (estado final: PLAYER_TURN)
+  [OK] turno 2: jogador -> golem -> jogador (estado final: PLAYER_TURN)
+  [OK] turno 3: jogador -> golem -> jogador (estado final: PLAYER_TURN)
+
+Exceções registradas durante toda a execução: 0
+TOTAL: 47 verificações aprovadas, 0 reprovadas.

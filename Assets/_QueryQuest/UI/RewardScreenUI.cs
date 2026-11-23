@@ -179,11 +179,10 @@ namespace QueryQuest.UI
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.textWrappingMode = TextWrappingModes.NoWrap;
             tmp.raycastTarget = false;
-            tmp.enableAutoSizing = true;
-            // Piso baixo de proposito: o rotulo e curto e precisa caber numa
-            // faixa estreita — melhor encolher que transbordar.
-            tmp.fontSizeMin = 5f;
-            tmp.fontSizeMax = 13f;
+            // Tamanho fixo: com autoajuste cada rotulo crescia ate encher a
+            // faixa, e a palavra mais curta (MAGIA) saia maior que as outras.
+            tmp.enableAutoSizing = false;
+            tmp.fontSize = 11f;
         }
 
         /// <summary>Posiciona um elemento por fração do cartão.</summary>
@@ -202,9 +201,9 @@ namespace QueryQuest.UI
 
         private static string NomeDoTipo(RewardType t) => t switch
         {
-            RewardType.Armor => "DEFESA",
-            RewardType.Staff => "ELEMENTO",
-            RewardType.Page  => "NOVA MAGIA",
+            RewardType.Armor => "ARMADURA",
+            RewardType.Staff => "CAJADO",
+            RewardType.Page  => "MAGIA",
             _ => "RECOMPENSA",
         };
 
